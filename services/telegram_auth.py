@@ -42,10 +42,13 @@ def verify_init_data(init_data: str) -> dict:
 
 async def telegram_user(
     x_telegram_init_data: str = Header(default="", alias="X-Telegram-Init-Data"),
+    authorization: str = Header(default=""),
     dev_tg_id: int | None = Query(default=None, include_in_schema=False),
 ) -> dict:
-    if x_telegram_init_data:
-        return verify_init_data(x_telegram_init_data)
+    auth_init_data = authorization[4:].strip() if authorization.lower().startswith("tma ") else ""
+    init_data = x_telegram_init_data or auth_init_data
+    if init_data:
+        return verify_init_data(init_data)
     if DEBUG and DEV_TELEGRAM_ID and dev_tg_id == DEV_TELEGRAM_ID:
         return {"id": DEV_TELEGRAM_ID, "first_name": "Development user"}
     raise HTTPException(status_code=401, detail="Web Appni Telegram ichidan oching")

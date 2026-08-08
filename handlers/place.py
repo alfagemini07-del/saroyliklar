@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 # =====================================================
 # DO'KON OCHISH — BOSHLASH
 # =====================================================
-@router.message(F.text == "🏪 Do'kon ochish")
+@router.message(F.text.in_({"🏪 Do'konim", "🏪 Do'kon ochish"}))
 async def start_create_place(message: Message, state: FSMContext, session: AsyncSession):
     user = await get_user(session, message.from_user.id)
     if not user or not user.phone:

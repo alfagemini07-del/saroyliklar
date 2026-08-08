@@ -12,8 +12,6 @@ from services.ad_service import get_user, create_or_update_user
 from keyboards.keyboards import (
     main_menu, phone_keyboard, remove_keyboard, admin_contact_link_keyboard
 )
-from config import FREE_ADS_PER_USER
-
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -41,7 +39,6 @@ async def start_handler(
             message.from_user.full_name,
             message.from_user.username
         )
-        user.total_ad_limit = FREE_ADS_PER_USER
         await session.commit()
 
     # Referral tizimi
@@ -65,11 +62,12 @@ async def start_handler(
         await state.set_state(Register.full_name)
         await message.answer(
             "👋 <b>Assalomu alaykum!</b>\n\n"
-            "🏘️ <b>Mahalla Elon</b> botiga xush kelibsiz!\n\n"
+            "🛍 <b>Saroylik bozori</b> botiga xush kelibsiz!\n\n"
             "Bu bot orqali:\n"
-            "• 📝 Mahallangizda e'lon joylashingiz\n"
-            "• 🏪 Do'kon / choyxona profilingizni oching\n"
-            "• 🗺️ Xaritada barcha e'lonlarni ko'ring\n\n"
+            "• 🏪 Mahalliy do'konlarni topasiz\n"
+            "• 🛒 Mahsulotlar va narxlarni ko'rasiz\n"
+            "• 📍 Do'konlarni xaritadan topasiz\n"
+            "• 📦 O'z do'koningiz va katalogingizni ochasiz\n\n"
             "✍️ <b>Boshlash uchun ism va familiyangizni kiriting:</b>",
             parse_mode="HTML",
             reply_markup=remove_keyboard()
@@ -79,7 +77,7 @@ async def start_handler(
     name = user.full_name or message.from_user.full_name
     await message.answer(
         f"👋 Assalomu alaykum, <b>{name}</b>!\n\n"
-        "🏘️ <b>Mahalla Elon</b> ga xush kelibsiz!\n"
+        "🛍 <b>Saroylik bozori</b>ga xush kelibsiz!\n"
         "Quyidagi menyudan foydalaning 👇",
         parse_mode="HTML",
         reply_markup=main_menu()
@@ -177,19 +175,13 @@ async def register_phone_step(
 
         if referrer:
             referrer.referral_count += 1
-            bonus_msg = ""
-            if referrer.referral_count % 5 == 0:
-                referrer.total_ad_limit += 1
-                bonus_msg = "\n🎁 <b>+1 ta bepul e'lon limiti berildi!</b>"
-
             try:
                 await message.bot.send_message(
                     chat_id=referrer_tg_id,
                     text=(
                         f"👤 <b>Yangi referal!</b>\n\n"
                         f"<b>{full_name}</b> ro'yxatdan o'tdi.\n"
-                        f"Jami referallar: <b>{referrer.referral_count} ta</b>"
-                        f"{bonus_msg}"
+                        f"Jami takliflar: <b>{referrer.referral_count} ta</b>"
                     ),
                     parse_mode="HTML"
                 )
@@ -200,7 +192,7 @@ async def register_phone_step(
     await state.clear()
     await message.answer(
         "🎉 <b>Muvaffaqiyatli ro'yxatdan o'tdingiz!</b>\n\n"
-        f"Sizga <b>{FREE_ADS_PER_USER} ta bepul e'lon</b> berildi!\n\n"
+        "Endi mahalliy do'konlarni ko'rishingiz yoki o'z do'koningizni ochishingiz mumkin.\n\n"
         "Quyidagi menyudan foydalaning 👇",
         parse_mode="HTML",
         reply_markup=main_menu()

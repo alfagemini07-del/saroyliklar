@@ -9,14 +9,21 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="/static/css/webapp.css?v=4">
+  <link rel="stylesheet" href="/static/css/webapp.css?v=6">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
 </head>
 <body>
-  <div class="app-shell">
+  <div class="access-gate" id="access-gate">
+    <div>
+      <span class="access-gate-icon"><i data-lucide="shield-check"></i></span>
+      <h1 id="access-gate-title">Telegram sessiyasi tekshirilmoqda</h1>
+      <p id="access-gate-text">Xavfsiz kirish tayyorlanmoqda.</p>
+    </div>
+  </div>
+  <div class="app-shell" id="app-shell" hidden>
     <header class="topbar">
       <div class="brand-row">
         <div class="brand-mark">S</div>
@@ -142,6 +149,6 @@
   </div>
 
   <div class="toast" id="toast" role="status"></div>
-  <script src="/static/js/webapp-v4.js?v=4" defer></script>
+  <script src="/static/js/webapp-v4.js?v=6" defer></script>
 </body>
 </html>

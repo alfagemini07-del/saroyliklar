@@ -63,12 +63,13 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "")
 ADMIN_COOKIE_NAME = "saroyliklar_admin"
 
-# Google Drive OAuth. A personal Drive account must use an OAuth refresh token.
-GOOGLE_DRIVE_CLIENT_ID = os.getenv("GOOGLE_DRIVE_CLIENT_ID", "")
-GOOGLE_DRIVE_CLIENT_SECRET = os.getenv("GOOGLE_DRIVE_CLIENT_SECRET", "")
-GOOGLE_DRIVE_REFRESH_TOKEN = os.getenv("GOOGLE_DRIVE_REFRESH_TOKEN", "")
-GOOGLE_DRIVE_FOLDER_ID = os.getenv("GOOGLE_DRIVE_FOLDER_ID", "")
-GOOGLE_DRIVE_PUBLIC = _env_bool("GOOGLE_DRIVE_PUBLIC", True)
+# Supabase Storage. The secret/service-role key is used only by the backend.
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_STORAGE_KEY = (
+    os.getenv("SUPABASE_SECRET_KEY", "").strip()
+    or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
+)
+SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "saroyliklar-media").strip()
 MAX_UPLOAD_MB = _env_int("MAX_UPLOAD_MB", 20)
 
 # Local-only WebApp testing. Never enable this on Render.
@@ -115,10 +116,9 @@ def validate_runtime_config() -> list[str]:
         "WEBHOOK_SECRET": WEBHOOK_SECRET,
         "ADMIN_PASSWORD": ADMIN_PASSWORD,
         "ADMIN_SECRET_KEY": ADMIN_SECRET_KEY,
-        "GOOGLE_DRIVE_CLIENT_ID": GOOGLE_DRIVE_CLIENT_ID,
-        "GOOGLE_DRIVE_CLIENT_SECRET": GOOGLE_DRIVE_CLIENT_SECRET,
-        "GOOGLE_DRIVE_REFRESH_TOKEN": GOOGLE_DRIVE_REFRESH_TOKEN,
-        "GOOGLE_DRIVE_FOLDER_ID": GOOGLE_DRIVE_FOLDER_ID,
+        "SUPABASE_URL": SUPABASE_URL,
+        "SUPABASE_STORAGE_KEY": SUPABASE_STORAGE_KEY,
+        "SUPABASE_STORAGE_BUCKET": SUPABASE_STORAGE_BUCKET,
     }
     for name, value in required.items():
         if not value:
@@ -127,4 +127,10 @@ def validate_runtime_config() -> list[str]:
         errors.append("PUBLIC_BASE_URL must use HTTPS in production")
     if ENVIRONMENT == "production" and DEV_TELEGRAM_ID:
         errors.append("DEV_TELEGRAM_ID must be disabled in production")
+    if SUPABASE_URL and not SUPABASE_URL.startswith("https://"):
+        errors.append("SUPABASE_URL must use HTTPS")
+    if SUPABASE_STORAGE_KEY and not SUPABASE_STORAGE_KEY.startswith(("sb_secret_", "eyJ")):
+        errors.append("Supabase Storage requires a secret or legacy service_role key")
+    if MAX_UPLOAD_MB < 1 or MAX_UPLOAD_MB > 50:
+        errors.append("MAX_UPLOAD_MB must be between 1 and 50 for Supabase Free")
     return errors

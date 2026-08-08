@@ -1,6 +1,6 @@
-# Saroyliklar: Render + Supabase + Google Drive
+# Saroyliklar: Render + Supabase
 
-Ushbu loyiha bitta bepul Render Web Service ichida FastAPI va Telegram webhook sifatida ishlaydi. PostgreSQL ma'lumotlari Supabase'da, rasm va videolar Google Drive'da saqlanadi.
+Loyiha bitta bepul Render Web Service ichida FastAPI va Telegram webhook sifatida ishlaydi. PostgreSQL ma'lumotlari ham, rasm va videolar ham bitta Supabase project ichida saqlanadi. Render lokal diskiga foydalanuvchi fayllari yozilmaydi.
 
 ## 1. Telegram bot
 
@@ -8,9 +8,9 @@ Ushbu loyiha bitta bepul Render Web Service ichida FastAPI va Telegram webhook s
 2. `ADMIN_IDS` uchun o'z Telegram raqamli ID'ingizni kiriting. Bir nechta admin vergul bilan yoziladi: `123456789,987654321`.
 3. Oldingi token Git tarixiga tushgan bo'lsa, BotFather orqali uni darhol yangilang.
 
-## 2. Supabase bazasi
+## 2. Supabase project va baza
 
-1. [Supabase](https://supabase.com/dashboard) da bepul project yarating va database parolini xavfsiz joyda saqlang.
+1. [Supabase Dashboard](https://supabase.com/dashboard) da bepul project yarating va database parolini xavfsiz joyda saqlang.
 2. Project oynasida `Connect` tugmasini bosing.
 3. `Session pooler` ulanishini tanlang. Render IPv4 muhitida port `5432` dagi session pooler ishlatiladi.
 4. Ulanish satrining boshini `postgresql+asyncpg://` ga almashtiring:
@@ -27,36 +27,28 @@ python -c "from urllib.parse import quote_plus; print(quote_plus('SIZNING_PAROLI
 
 Jadvallar birinchi startda avtomatik yaratiladi. Eski versiyadagi baza ishlatilsa, kerakli media ustunlari idempotent migratsiya bilan qo'shiladi.
 
-## 3. Google Drive OAuth
+## 3. Supabase Storage
 
-Shaxsiy bepul Google Drive uchun service account ishlatmang: service account fayl egasi bo'la olmaydi. Loyiha OAuth refresh token bilan sizning Drive hisobingiz nomidan ishlaydi.
+1. Supabase project ichida `Storage` bo'limini oching.
+2. `New bucket` tugmasini bosing.
+3. Bucket nomini aynan `saroyliklar-media` deb yozing.
+4. `Public bucket` parametrini yoqing. E'lon rasmlari va videolari WebApp hamda Telegram kanalida ochilishi uchun bucket public bo'lishi kerak.
+5. File size limit'ni `20 MB` qilib belgilang.
+6. Ruxsat etilgan MIME turlariga quyidagilarni kiriting:
 
-1. [Google Cloud Console](https://console.cloud.google.com/) da project yarating.
-2. `APIs & Services -> Library` dan `Google Drive API` ni yoqing.
-3. `Google Auth Platform -> Audience` da `External` ni tanlang va Google hisobingizni test user sifatida qo'shing.
-4. `Clients -> Create client -> Desktop app` orqali OAuth client yarating.
-5. Client ID va Client Secret'ni lokal `.env` faylga kiriting:
-
-```env
-GOOGLE_DRIVE_CLIENT_ID=...
-GOOGLE_DRIVE_CLIENT_SECRET=...
+```text
+image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime
 ```
 
-6. Lokal kompyuterda kutubxonalarni o'rnating va yordamchi skriptni ishga tushiring:
+Keyin `Project Settings -> API Keys` bo'limidan quyidagilarni oling:
 
-```powershell
-python -m pip install -r requirements.txt
-python scripts/google_drive_auth.py
-```
+- `Project URL` -> `SUPABASE_URL`
+- Yangi formatdagi `Secret key` -> `SUPABASE_SECRET_KEY`
+- Agar Secret key ko'rinmasa, eski `service_role` kalitini `SUPABASE_SERVICE_ROLE_KEY` nomi bilan ishlatish ham mumkin.
 
-7. Brauzerda aynan media saqlanadigan Google hisobini tanlang. Skript `Saroyliklar Media` papkasini yaratadi va quyidagi ikki qiymatni chiqaradi:
+Muhim: Secret yoki service-role kalitini HTML, JavaScript yoki GitHub'ga joylamang. U faqat Render backend Environment ichida turishi kerak. Public bucket fayllarni o'qishga ochiq qiladi, lekin yuklash va o'chirish faqat backend maxfiy kaliti orqali bajariladi.
 
-```env
-GOOGLE_DRIVE_REFRESH_TOKEN=...
-GOOGLE_DRIVE_FOLDER_ID=...
-```
-
-Muhim: Google OAuth ilovasi `Testing` holatida bo'lsa Drive scope bilan olingan refresh token 7 kunda tugaydi. Sinovdan keyin OAuth ilovasini `In production` holatiga o'tkazing va tokenni skript orqali qayta oling. Bu OAuth faqat bitta, o'zingizning Drive hisobingiz uchun ishlatiladi.
+Supabase Free rejada jami 1 GB Storage va bitta fayl uchun ko'pi bilan 50 MB limit mavjud. Loyiha xavfsiz standart sifatida 20 MB limitdan foydalanadi.
 
 ## 4. GitHub'ga joylash
 
@@ -65,11 +57,11 @@ Muhim: Google OAuth ilovasi `Testing` holatida bo'lsa Drive scope bilan olingan 
 ```powershell
 git rm --cached .env
 git add .
-git commit -m "Prepare Saroyliklar for Render"
+git commit -m "Use Supabase Storage on Render"
 git push origin main
 ```
 
-`.env`, bot tokeni, Supabase paroli, Google refresh tokeni yoki admin parolini commit qilmang. Oldingi repoda haqiqiy kalitlar saqlangan bo'lsa, ularning barchasini yangilang.
+`.env`, bot tokeni, Supabase database paroli, Secret/service-role key yoki admin parolini commit qilmang. Oldingi repoda haqiqiy kalitlar saqlangan bo'lsa, ularning barchasini yangilang.
 
 ## 5. Render Blueprint
 
@@ -85,14 +77,13 @@ git push origin main
 | `ADMIN_PASSWORD` | Kuchli web admin paroli |
 | `WEBHOOK_SECRET` | Faqat harf, raqam, `_` va `-` dan iborat maxfiy satr |
 | `PUBLIC_BASE_URL` | `https://SERVIS-NOMI.onrender.com` |
-| `DATABASE_URL` | Supabase session pooler satri |
-| `GOOGLE_DRIVE_CLIENT_ID` | Google OAuth client ID |
-| `GOOGLE_DRIVE_CLIENT_SECRET` | Google OAuth client secret |
-| `GOOGLE_DRIVE_REFRESH_TOKEN` | Skript chiqargan token |
-| `GOOGLE_DRIVE_FOLDER_ID` | Skript yaratgan papka ID'si |
+| `DATABASE_URL` | Supabase Session pooler satri |
+| `SUPABASE_URL` | `https://PROJECT_REF.supabase.co` |
+| `SUPABASE_SECRET_KEY` | Supabase Secret key yoki service-role key |
+| `SUPABASE_STORAGE_BUCKET` | `saroyliklar-media` |
 | `GEMINI_API_KEY` | Ixtiyoriy |
 
-`ADMIN_SECRET_KEY` Render tomonidan avtomatik yaratiladi. `WEBHOOK_SECRET` uchun quyidagi buyruq bilan Telegram qabul qiladigan URL-safe qiymat yarating:
+`ADMIN_SECRET_KEY` Render tomonidan avtomatik yaratiladi. `WEBHOOK_SECRET` uchun Telegram qabul qiladigan URL-safe qiymat yarating:
 
 ```powershell
 python -c "import secrets; print(secrets.token_urlsafe(32))"
@@ -109,23 +100,40 @@ https://SERVIS-NOMI.onrender.com/webapp
 https://SERVIS-NOMI.onrender.com/admin
 ```
 
-## 6. Bot va Web App tekshiruvi
+`/health` javobida `storage` va `database` qiymatlari `supabase` bo'lishi kerak.
+
+## 6. Bot va WebApp tekshiruvi
 
 1. Botga `/start` yuboring va telefon raqamingizni ulashing.
 2. `Xarita va E'lonlar` tugmasini oching.
-3. Web App'dan rasmli va videoli test e'lon yuboring.
-4. Google Drive'dagi `Saroyliklar Media` papkasida media paydo bo'lganini tekshiring.
+3. WebApp'dan rasmli va videoli test e'lon yuboring.
+4. Supabase `Storage -> saroyliklar-media` ichida fayl paydo bo'lganini tekshiring.
 5. Admin panel yoki Telegram admin tugmasi orqali e'lonni tasdiqlang.
 6. Xarita markerini, detail oynasini, qo'ng'iroq tugmasini va e'lonni o'chirishni tekshiring.
+7. E'lon o'chirilganda uning Storage fayli ham yo'qolganini tekshiring.
 
-## 7. Bepul Render cheklovi
+## 7. Eski Google Drive fayllari
 
-Render Free web service 15 daqiqa kiruvchi trafik bo'lmasa uxlaydi. Keyingi Telegram xabari yoki Web App so'rovida uyg'onish taxminan bir daqiqa olishi mumkin. Lokal disk vaqtinchalik bo'lgani uchun loyiha runtime'da lokal media saqlamaydi. Yuqori trafik yoki doimiy tezkor javob kerak bo'lsa, Render'ning pullik instance'i kerak bo'ladi.
+Yangi yuklamalar faqat Supabase Storage'ga tushadi. Google Drive'da oldindan mavjud bo'lgan fayllar avtomatik ko'chirilmaydi. Eski bazadagi `public_url` ishlashda davom etishi mumkin, lekin Google Drive fayllarini o'chirish endi bot tomonidan boshqarilmaydi. Kerakli eski rasmlarni qo'lda Supabase bucket'ga yuklash yoki e'lonlarni qayta yaratish mumkin.
+
+Render Environment'dan eski quyidagi qiymatlarni o'chirish mumkin:
+
+```text
+GOOGLE_DRIVE_CLIENT_ID
+GOOGLE_DRIVE_CLIENT_SECRET
+GOOGLE_DRIVE_REFRESH_TOKEN
+GOOGLE_DRIVE_FOLDER_ID
+GOOGLE_DRIVE_PUBLIC
+```
+
+## 8. Bepul rejalar cheklovi
+
+Render Free web service 15 daqiqa kiruvchi trafik bo'lmasa uxlaydi. Keyingi Telegram xabari yoki WebApp so'rovida uyg'onish biroz vaqt olishi mumkin. Supabase Free Storage 1 GB bilan cheklanganligi sababli, videolar uchun hajm nazoratini saqlang va keraksiz e'lonlarni admin paneldan o'chirib boring.
 
 ## Lokal ishga tushirish
 
 1. `.env.example` dan `.env` yarating va qiymatlarni kiriting.
-2. Lokal PostgreSQL yoki Supabase URL'ini ishlating.
+2. Supabase database URL, project URL va Secret key'ni kiriting.
 3. Serverni boshlang:
 
 ```powershell
@@ -133,4 +141,4 @@ python -m pip install -r requirements.txt
 uvicorn bot:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Telegram webhook lokal `http://localhost` ga kelmaydi. Botning real webhook sinovi uchun HTTPS tunnel yoki Render URL'i kerak. Web App'ni Telegram tashqarisida faqat lokal tekshirish uchun `.env` da `DEV_TELEGRAM_ID` ni o'z ID'ingizga qo'ying va `/webapp?dev_tg_id=ID` ni oching; production'da bu qiymat har doim `0` bo'lishi shart.
+Telegram webhook lokal `http://localhost` ga kelmaydi. Botning real webhook sinovi uchun HTTPS tunnel yoki Render URL'i kerak. WebApp'ni Telegram tashqarisida faqat lokal tekshirish uchun `.env` da `DEV_TELEGRAM_ID` ni o'z ID'ingizga qo'ying va `/webapp?dev_tg_id=ID` ni oching; production'da bu qiymat har doim `0` bo'lishi shart.

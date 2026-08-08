@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 import uvicorn
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.types import MenuButtonWebApp, WebAppInfo
 from fastapi import FastAPI
 
 from config import (
@@ -13,6 +14,7 @@ from config import (
     PUBLIC_BASE_URL,
     WEBHOOK_PATH,
     WEBHOOK_SECRET,
+    WEBAPP_URL,
     validate_runtime_config,
 )
 from database import close_db, init_db
@@ -49,6 +51,16 @@ async def lifespan(_: FastAPI):
         logger.warning("Configuration: %s", error)
 
     await init_db()
+    separator = "&" if "?" in WEBAPP_URL else "?"
+    try:
+        await bot.set_chat_menu_button(
+            menu_button=MenuButtonWebApp(
+                text="Saroylik bozori",
+                web_app=WebAppInfo(url=f"{WEBAPP_URL}{separator}v=6"),
+            )
+        )
+    except Exception as exc:
+        logger.warning("Telegram Mini App menu button could not be updated: %s", exc)
     webhook_url = f"{PUBLIC_BASE_URL}{WEBHOOK_PATH}"
     await bot.set_webhook(
         url=webhook_url,

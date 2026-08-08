@@ -1,6 +1,5 @@
-# web/api/__init__.py
-from . import (
-    endpoints_ads,
-    endpoints_stats,
-    endpoints_webapp_v2,
-)
+"""FastAPI endpoint package.
+
+Routers are imported explicitly in web.main_web to avoid circular imports and
+stale references when endpoint modules are added or removed.
+"""

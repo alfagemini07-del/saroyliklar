@@ -11,7 +11,8 @@ from config import WEBAPP_URL, CATEGORIES, REGIONS, CURRENCIES, WEBHOOK_URL
 # ASOSIY MENYU
 # =====================================================
 def main_menu():
-    safe_webapp_url = f"{WEBAPP_URL}?v=3"
+    separator = "&" if "?" in WEBAPP_URL else "?"
+    safe_webapp_url = f"{WEBAPP_URL}{separator}v=3"
     
     kb = ReplyKeyboardMarkup(
         keyboard=[

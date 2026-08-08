@@ -11,10 +11,19 @@ from database import User, BotSettings
 from services.ad_service import get_user, create_or_update_user
 from services.place_service import get_user_place
 from keyboards.keyboards import (
-    main_menu, phone_keyboard, remove_keyboard, admin_contact_link_keyboard
+    main_menu, phone_keyboard, remove_keyboard, admin_contact_link_keyboard,
+    webapp_inline_keyboard,
 )
 router = Router()
 logger = logging.getLogger(__name__)
+
+
+@router.message(F.text == "🛍 Saroylik bozori")
+async def open_marketplace_handler(message: Message):
+    await message.answer(
+        "Mahalliy do'konlar va mahsulotlarni ochish uchun quyidagi tugmani bosing:",
+        reply_markup=webapp_inline_keyboard(),
+    )
 
 
 # =====================================================

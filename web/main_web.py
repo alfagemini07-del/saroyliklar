@@ -59,7 +59,7 @@ def init_web(bot: Bot, dp: Dispatcher) -> FastAPI:
         allow_origins=origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "DELETE", "PUT"],
-        allow_headers=["Content-Type", "X-Telegram-Init-Data"],
+        allow_headers=["Content-Type", "Authorization", "X-Telegram-Init-Data"],
     )
 
     protected_api_prefixes = ("/api/admin", "/api/settings")
@@ -81,13 +81,12 @@ def init_web(bot: Bot, dp: Dispatcher) -> FastAPI:
 
     from web.api import (
         endpoints_admin_full,
-        endpoints_ads,
         endpoints_channel_management,
         endpoints_settings,
         endpoints_webapp_v2,
     )
 
-    app.include_router(endpoints_ads.router)
+    app.include_router(endpoints_webapp_v2.market_router)
     app.include_router(endpoints_webapp_v2.router)
     app.include_router(endpoints_admin_full.router)
     app.include_router(endpoints_channel_management.router)
@@ -106,11 +105,25 @@ def init_web(bot: Bot, dp: Dispatcher) -> FastAPI:
     @app.get("/")
     @app.get("/health")
     async def health():
-        return {"status": "ok", "service": "saroyliklar", "storage": "google-drive", "database": "supabase"}
+        return {
+            "status": "ok",
+            "service": "saroyliklar",
+            "version": "marketplace-v6",
+            "storage": "supabase",
+            "database": "supabase",
+        }
+
+    @app.get("/favicon.ico", include_in_schema=False)
+    async def favicon():
+        return Response(status_code=204)
 
     @app.get("/webapp")
     async def webapp_home(request: Request):
-        return templates.TemplateResponse(request=request, name="webapp.html")
+        return templates.TemplateResponse(
+            request=request,
+            name="webapp.html",
+            headers={"Cache-Control": "no-store, max-age=0"},
+        )
 
     @app.get("/admin")
     async def admin_dashboard(request: Request):

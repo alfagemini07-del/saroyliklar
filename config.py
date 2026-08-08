@@ -101,12 +101,15 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"]
 
 CATEGORIES = {
-    "housing": {"icon": "🏠", "name": "Uy-joy", "color": "#e4572e"},
-    "food": {"icon": "🍽️", "name": "Ovqatlanish", "color": "#f3a712"},
-    "grocery": {"icon": "🛒", "name": "Oziq-ovqat", "color": "#2a9d63"},
-    "hardware": {"icon": "🔧", "name": "Qurilish va jihoz", "color": "#6c5ce7"},
-    "services": {"icon": "💼", "name": "Xizmatlar", "color": "#277da1"},
-    "entertainment": {"icon": "🎯", "name": "Ko'ngilochar", "color": "#ef476f"},
+    "grocery": {"icon": "🛒", "name": "Oziq-ovqat", "color": "#16865b"},
+    "food": {"icon": "🍽️", "name": "Taomlar", "color": "#e76f2e"},
+    "clothing": {"icon": "👕", "name": "Kiyim-kechak", "color": "#2563a8"},
+    "home": {"icon": "🛋️", "name": "Uy-ro'zg'or", "color": "#8b5a2b"},
+    "beauty": {"icon": "✨", "name": "Go'zallik", "color": "#c44569"},
+    "health": {"icon": "💊", "name": "Salomatlik", "color": "#0f8b8d"},
+    "electronics": {"icon": "📱", "name": "Elektronika", "color": "#5b5bd6"},
+    "construction": {"icon": "🧰", "name": "Qurilish", "color": "#b7791f"},
+    "services": {"icon": "🧑‍🔧", "name": "Xizmatlar", "color": "#277da1"},
     "other": {"icon": "📦", "name": "Boshqa", "color": "#59636e"},
 }
 
@@ -116,7 +119,7 @@ CATEGORY_NAMES_FOR_AI = {
 
 CURRENCIES = ["UZS", "USD"]
 MAX_AD_IMAGES = 5
-MAX_PLACE_PHOTOS = 20
+MAX_PLACE_PHOTOS = 50
 AD_EXPIRE_DAYS = 30
 FREE_ADS_PER_USER = 3
 

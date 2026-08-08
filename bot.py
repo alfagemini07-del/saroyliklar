@@ -16,10 +16,9 @@ from config import (
     validate_runtime_config,
 )
 from database import close_db, init_db
-from handlers.ad_create import router as ad_create_router
 from handlers.admin import router as admin_router
-from handlers.my_ads import router as my_ads_router
 from handlers.place import router as place_router
+from handlers.profile import router as profile_router
 from handlers.start import router as start_router
 from middlewares.db import DbMiddleware
 from middlewares.throttling import ThrottlingMiddleware
@@ -38,9 +37,8 @@ dp.update.middleware(DbMiddleware())
 dp.message.middleware(ThrottlingMiddleware(limit=0.8))
 dp.callback_query.middleware(ThrottlingMiddleware(limit=0.35))
 dp.include_router(start_router)
-dp.include_router(ad_create_router)
 dp.include_router(place_router)
-dp.include_router(my_ads_router)
+dp.include_router(profile_router)
 dp.include_router(admin_router)
 
 

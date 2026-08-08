@@ -140,9 +140,13 @@ class PlacePhoto(Base):
     mime_type = Column(String(100), default="image/jpeg")
     media_type = Column(String(20), default="image", nullable=False)
     size_bytes = Column(BigInteger)
+    title = Column(String(160))
+    description = Column(Text)
     caption = Column(String(200))
     price = Column(Numeric(14, 2))
     currency = Column(String(10), default="UZS", nullable=False)
+    is_available = Column(Boolean, default=True, nullable=False)
+    view_count = Column(Integer, default=0, nullable=False)
     order_num = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=utcnow, nullable=False)
 
@@ -281,6 +285,10 @@ async def _upgrade_existing_schema() -> None:
         "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS mime_type VARCHAR(100) DEFAULT 'image/jpeg'",
         "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS media_type VARCHAR(20) NOT NULL DEFAULT 'image'",
         "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS size_bytes BIGINT",
+        "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS title VARCHAR(160)",
+        "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS description TEXT",
+        "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE",
+        "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0",
     ]
     async with engine.begin() as conn:
         for statement in statements:

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from config import AD_EXPIRE_DAYS, CATEGORIES
-from database import Ad, Place, Transaction, User, get_session
+from database import Ad, Place, PlacePhoto, Transaction, User, get_session
 from services.channel_post_service import post_ad_to_channels
 from services.supabase_storage_service import get_storage, media_public_url
 
@@ -40,7 +40,7 @@ async def stats_summary(session: AsyncSession = Depends(get_session)):
     return {
         "total_users": await session.scalar(select(func.count(User.id))) or 0,
         "today_users": await session.scalar(select(func.count(User.id)).where(User.created_at >= today)) or 0,
-        "active_listings": await session.scalar(select(func.count(Ad.id)).where(Ad.status == "active")) or 0,
+        "total_products": await session.scalar(select(func.count(PlacePhoto.id))) or 0,
         "blocked_bot": await session.scalar(select(func.count(User.id)).where(User.is_blocked.is_(True))) or 0,
         "total_places": await session.scalar(select(func.count(Place.id))) or 0,
         "pending_places": await session.scalar(select(func.count(Place.id)).where(Place.status == "pending")) or 0,
@@ -77,7 +77,10 @@ async def users_list(
     ).scalars().all()
     result = []
     for user in users:
-        ad_count = await session.scalar(select(func.count(Ad.id)).where(Ad.user_id == user.id)) or 0
+        product_count = await session.scalar(
+            select(func.count(PlacePhoto.id)).join(Place, Place.id == PlacePhoto.place_id).where(Place.user_id == user.id)
+        ) or 0
+        store_name = await session.scalar(select(Place.name).where(Place.user_id == user.id).limit(1))
         result.append(
             {
                 "id": user.id,
@@ -86,8 +89,8 @@ async def users_list(
                 "username": user.username,
                 "phone": user.phone,
                 "balance": float(user.balance or 0),
-                "ad_limit": user.total_ad_limit or 0,
-                "ad_count": ad_count,
+                "product_count": product_count,
+                "store_name": store_name,
                 "is_blocked": user.is_blocked,
                 "created_at": _date(user.created_at),
             }
@@ -98,6 +101,7 @@ async def users_list(
 @router.get("/users/{tg_id}")
 async def user_detail(tg_id: int, session: AsyncSession = Depends(get_session)):
     user = await _user_by_tg(session, tg_id)
+    store = await session.scalar(select(Place).options(selectinload(Place.photos)).where(Place.user_id == user.id))
     return {
         "id": user.id,
         "tg_id": user.telegram_id,
@@ -105,7 +109,8 @@ async def user_detail(tg_id: int, session: AsyncSession = Depends(get_session)):
         "username": user.username,
         "phone": user.phone,
         "balance": float(user.balance or 0),
-        "ad_limit": user.total_ad_limit or 0,
+        "store_name": store.name if store else None,
+        "product_count": len(store.photos) if store else 0,
         "is_blocked": user.is_blocked,
         "created_at": _date(user.created_at),
     }

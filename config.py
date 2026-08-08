@@ -9,6 +9,17 @@ load_dotenv()
 _BASE_DIR = Path(__file__).resolve().parent
 
 
+def _env_text(name: str, default: str = "") -> str:
+    """Read a text env value and tolerate KEY=value pasted into Render's Value field."""
+    value = os.getenv(name, default).strip()
+    prefix = f"{name}="
+    if value.startswith(prefix):
+        value = value[len(prefix):].strip()
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        value = value[1:-1].strip()
+    return value
+
+
 def _env_bool(name: str, default: bool = False) -> bool:
     return os.getenv(name, str(default)).strip().lower() in {"1", "true", "yes", "on"}
 
@@ -33,15 +44,25 @@ def _env_int_list(name: str) -> list[int]:
 
 
 # Application / Render
-APP_NAME = os.getenv("APP_NAME", "Saroyliklar")
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+APP_NAME = _env_text("APP_NAME", "Saroyliklar")
+ENVIRONMENT = _env_text("ENVIRONMENT", "development").lower()
 DEBUG = _env_bool("DEBUG", ENVIRONMENT != "production")
 PORT = _env_int("PORT", 8000)
-PUBLIC_BASE_URL = os.getenv("PUBLIC_BASE_URL", os.getenv("WEBHOOK_URL", "http://localhost:8000")).rstrip("/")
+RENDER_EXTERNAL_URL = _env_text("RENDER_EXTERNAL_URL").rstrip("/")
+PUBLIC_BASE_URL = (
+    RENDER_EXTERNAL_URL
+    or _env_text("PUBLIC_BASE_URL").rstrip("/")
+    or _env_text("WEBHOOK_URL").rstrip("/")
+    or "http://localhost:8000"
+)
 WEBHOOK_URL = PUBLIC_BASE_URL  # Backward-compatible name used by a few handlers.
-WEBHOOK_PATH = os.getenv("WEBHOOK_PATH", "/telegram/webhook")
-WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
-WEBAPP_URL = os.getenv("WEBAPP_URL", f"{PUBLIC_BASE_URL}/webapp")
+WEBHOOK_PATH = _env_text("WEBHOOK_PATH", "/telegram/webhook")
+WEBHOOK_SECRET = _env_text("WEBHOOK_SECRET")
+WEBAPP_URL = (
+    f"{PUBLIC_BASE_URL}/webapp"
+    if RENDER_EXTERNAL_URL
+    else _env_text("WEBAPP_URL", f"{PUBLIC_BASE_URL}/webapp").rstrip("/")
+)
 BACKEND_URL = PUBLIC_BASE_URL
 
 # Telegram
@@ -49,7 +70,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN", "")
 ADMIN_IDS = _env_int_list("ADMIN_IDS")
 
 # Supabase Postgres. Use the Session pooler URL on port 5432 on Render.
-DATABASE_URL = os.getenv(
+DATABASE_URL = _env_text(
     "DATABASE_URL",
     "postgresql+asyncpg://postgres:postgres@localhost:5432/saroyliklar",
 )
@@ -64,7 +85,7 @@ ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "")
 ADMIN_COOKIE_NAME = "saroyliklar_admin"
 
 # Supabase Storage. The secret/service-role key is used only by the backend.
-SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_URL = _env_text("SUPABASE_URL").rstrip("/")
 SUPABASE_STORAGE_KEY = (
     os.getenv("SUPABASE_SECRET_KEY", "").strip()
     or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
@@ -125,6 +146,8 @@ def validate_runtime_config() -> list[str]:
             errors.append(f"{name} is not configured")
     if ENVIRONMENT == "production" and not PUBLIC_BASE_URL.startswith("https://"):
         errors.append("PUBLIC_BASE_URL must use HTTPS in production")
+    if ENVIRONMENT == "production" and not WEBAPP_URL.startswith("https://"):
+        errors.append("WEBAPP_URL must be a valid HTTPS URL")
     if ENVIRONMENT == "production" and DEV_TELEGRAM_ID:
         errors.append("DEV_TELEGRAM_ID must be disabled in production")
     if SUPABASE_URL and not SUPABASE_URL.startswith("https://"):

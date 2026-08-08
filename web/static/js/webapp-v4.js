@@ -2,6 +2,10 @@
   "use strict";
 
   const tg = window.Telegram?.WebApp;
+  const DEFAULT_CENTER = [40.167796262859696, 67.80262130723996];
+  const DEFAULT_ZOOM = 16;
+  const SATELLITE_TILES = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  const LABEL_TILES = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
   const qs = (selector, root = document) => root.querySelector(selector);
   const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
   const params = new URLSearchParams(window.location.search);
@@ -28,6 +32,10 @@
   };
 
   const elements = {
+    appShell: qs("#app-shell"),
+    accessGate: qs("#access-gate"),
+    accessGateTitle: qs("#access-gate-title"),
+    accessGateText: qs("#access-gate-text"),
     searchWrap: qs("#search-wrap"),
     searchInput: qs("#search-input"),
     clearSearch: qs("#clear-search"),
@@ -74,14 +82,18 @@
   }
 
   function apiUrl(path) {
-    if (!devTelegramId || !path.startsWith("/api/webapp")) return path;
-    const separator = path.includes("?") ? "&" : "?";
-    return `${path}${separator}dev_tg_id=${encodeURIComponent(devTelegramId)}`;
+    if (!path.startsWith("/api/webapp") && !path.startsWith("/api/market")) return path;
+    const url = new URL(path, window.location.origin);
+    if (devTelegramId) url.searchParams.set("dev_tg_id", devTelegramId);
+    return `${url.pathname}${url.search}`;
   }
 
   async function request(path, options = {}) {
     const headers = new Headers(options.headers || {});
-    if (tg?.initData) headers.set("X-Telegram-Init-Data", tg.initData);
+    if (tg?.initData) {
+      headers.set("X-Telegram-Init-Data", tg.initData);
+      headers.set("Authorization", `tma ${tg.initData}`);
+    }
     const response = await fetch(apiUrl(path), { ...options, headers });
     const contentType = response.headers.get("content-type") || "";
     const data = contentType.includes("application/json") ? await response.json() : null;
@@ -247,11 +259,12 @@
 
   function initMap() {
     if (state.map || !window.L) return;
-    state.map = L.map("market-map", { zoomControl: true }).setView([40.25, 64.5], 7);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    state.map = L.map("market-map", { zoomControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    L.tileLayer(SATELLITE_TILES, {
       maxZoom: 19,
-      attribution: "&copy; OpenStreetMap",
+      attribution: "Imagery &copy; Esri",
     }).addTo(state.map);
+    L.tileLayer(LABEL_TILES, { maxZoom: 19, pane: "overlayPane" }).addTo(state.map);
     state.mapCluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 44 });
     state.map.addLayer(state.mapCluster);
     state.map.on("moveend", () => {
@@ -283,9 +296,7 @@
       west: String(bounds.getWest()),
     });
     try {
-      const response = await fetch(`/api/market/map?${query}`, { signal: state.mapRequest.signal });
-      if (!response.ok) throw new Error("Xaritadagi do'konlar yuklanmadi");
-      const data = await response.json();
+      const data = await request(`/api/market/map?${query}`, { signal: state.mapRequest.signal });
       state.mapCluster.clearLayers();
       data.stores.forEach((store) => {
         const marker = L.marker([store.lat, store.lng], { icon: markerIcon(store), title: store.name });
@@ -503,12 +514,13 @@
     state.pickerTarget = form;
     elements.mapPicker.classList.add("open");
     elements.mapPicker.setAttribute("aria-hidden", "false");
-    const lat = Number(form.elements.lat.value) || 40.25;
-    const lng = Number(form.elements.lng.value) || 64.5;
+    const lat = Number(form.elements.lat.value) || DEFAULT_CENTER[0];
+    const lng = Number(form.elements.lng.value) || DEFAULT_CENTER[1];
     setTimeout(() => {
       if (!state.pickerMap) {
-        state.pickerMap = L.map("picker-map", { zoomControl: true }).setView([lat, lng], form.elements.lat.value ? 16 : 7);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap" }).addTo(state.pickerMap);
+        state.pickerMap = L.map("picker-map", { zoomControl: true }).setView([lat, lng], form.elements.lat.value ? 16 : DEFAULT_ZOOM);
+        L.tileLayer(SATELLITE_TILES, { maxZoom: 19, attribution: "Imagery &copy; Esri" }).addTo(state.pickerMap);
+        L.tileLayer(LABEL_TILES, { maxZoom: 19, pane: "overlayPane" }).addTo(state.pickerMap);
         state.pickerMap.on("move", updatePickerCoordinates);
       } else {
         state.pickerMap.setView([lat, lng], form.elements.lat.value ? 16 : 7);
@@ -678,15 +690,25 @@
     tg?.expand();
     tg?.setHeaderColor?.("#ffffff");
     tg?.setBackgroundColor?.("#f6f7f8");
-    bindEvents();
     refreshIcons();
-    elements.clearSearch.style.visibility = "hidden";
+    if (!tg?.initData && !devTelegramId) {
+      elements.accessGate.classList.add("denied");
+      elements.accessGateTitle.textContent = "Kirish cheklangan";
+      elements.accessGateText.textContent = "Marketpleysni Telegram botdagi menu yoki inline tugma orqali oching.";
+      return;
+    }
     try {
+      state.profile = await request("/api/webapp/me");
+      elements.accessGate.hidden = true;
+      elements.appShell.hidden = false;
+      bindEvents();
+      elements.clearSearch.style.visibility = "hidden";
       await loadCategories();
       await loadProducts();
     } catch (error) {
-      elements.productGrid.innerHTML = emptyState("wifi-off", "Marketpleys ochilmadi", error.message);
-      refreshIcons(elements.productGrid);
+      elements.accessGate.classList.add("denied");
+      elements.accessGateTitle.textContent = "Telegram sessiyasi tasdiqlanmadi";
+      elements.accessGateText.textContent = error.message;
     }
   }
 

@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Panel — Mahalla Bozor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<style>
+/* ===== RESET & VARS ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --p:     #3B82F6; --pd: #2563EB; --pl: #EFF6FF;
+  --g:     #22C55E; --gl: #F0FDF4;
+  --w:     #F59E0B; --wl: #FFFBEB;
+  --r:     #EF4444; --rl: #FEF2F2;
+  --v:     #8B5CF6; --vl: #F5F3FF;
+  --bg:    #F1F5F9;
+  --sf:    #FFFFFF;
+  --sf2:   #F8FAFC;
+  --bd:    #E2E8F0; --bd2: #CBD5E1;
+  --tx:    #0F172A; --txs: #475569; --txm: #94A3B8;
+  --sw:    240px;
+  --hh:    56px;
+}
+html,body { height:100%; overflow:hidden; font-family:'Inter',-apple-system,sans-serif; background:var(--bg); color:var(--tx); }
+a { text-decoration:none; color:inherit; }
+button { font-family:inherit; cursor:pointer; border:none; outline:none; }
+
+/* ===== LAYOUT ===== */
+.layout { display:flex; height:100vh; overflow:hidden; }
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  width:var(--sw); flex-shrink:0;
+  background:var(--sf); border-right:1px solid var(--bd);
+  display:flex; flex-direction:column;
+  height:100vh; overflow-y:auto;
+}
+.sb-logo {
+  height:var(--hh); display:flex; align-items:center; gap:10px;
+  padding:0 18px; border-bottom:1px solid var(--bd); flex-shrink:0;
+}
+.sb-logo-icon {
+  width:30px; height:30px; background:var(--p); border-radius:8px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; color:#fff; flex-shrink:0;
+}
+.sb-logo-text { font-size:14px; font-weight:800; color:var(--tx); }
+.sb-nav { padding:10px 8px; flex:1; }
+.sb-section { font-size:10px; font-weight:700; color:var(--txm); text-transform:uppercase; letter-spacing:.8px; padding:8px 10px 4px; }
+.sb-item {
+  display:flex; align-items:center; gap:9px;
+  padding:8px 10px; border-radius:8px;
+  font-size:13px; font-weight:500; color:var(--txs);
+  margin-bottom:1px; cursor:pointer; transition:.12s;
+}
+.sb-item:hover { background:var(--sf2); color:var(--tx); }
+.sb-item.active { background:var(--pl); color:var(--p); font-weight:700; }
+.sb-item.danger { color:var(--r); }
+.sb-item.danger:hover { background:var(--rl); }
+.sb-ico { font-size:16px; width:20px; text-align:center; }
+.sb-badge {
+  margin-left:auto; background:var(--r); color:#fff;
+  font-size:10px; font-weight:800; padding:1px 6px; border-radius:10px;
+}
+.sb-foot { padding:10px 8px; border-top:1px solid var(--bd); flex-shrink:0; }
+.sb-user { display:flex; align-items:center; gap:9px; padding:8px 10px; }
+.sb-av {
+  width:32px; height:32px; border-radius:50%; background:var(--p);
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; color:#fff; font-weight:800; flex-shrink:0;
+}
+.sb-uname { font-size:13px; font-weight:700; }
+.sb-urole { font-size:11px; color:var(--txm); }
+
+/* ===== MAIN ===== */
+.main { flex:1; display:flex; flex-direction:column; height:100vh; overflow:hidden; }
+
+/* ===== TOPBAR ===== */
+.topbar {
+  height:var(--hh); flex-shrink:0;
+  background:var(--sf); border-bottom:1px solid var(--bd);
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0 20px;
+}
+.tb-title { font-size:16px; font-weight:800; }
+.tb-actions { display:flex; gap:7px; }
+.tb-btn {
+  height:34px; padding:0 12px; border-radius:8px;
+  border:1.5px solid var(--bd); background:var(--sf);
+  font-size:12.5px; font-weight:600; color:var(--txs);
+  display:flex; align-items:center; gap:5px; transition:.12s;
+}
+.tb-btn:hover { border-color:var(--p); color:var(--p); background:var(--pl); }
+.tb-btn-p { background:var(--p); color:#fff; border-color:var(--p); }
+.tb-btn-p:hover { background:var(--pd); color:#fff; }
+
+/* ===== PAGE AREA (scrolls internally) ===== */
+.page-area { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+.page-scroll { flex:1; overflow-y:auto; padding:18px 20px; }
+
+/* ===== STAT CARDS ===== */
+.stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.stat-card {
+  background:var(--sf); border:1px solid var(--bd); border-radius:10px;
+  padding:14px 16px; display:flex; align-items:center; gap:12px;
+  box-shadow:0 1px 3px rgba(0,0,0,.06); cursor:default;
+}
+.stat-ico { width:40px; height:40px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+.stat-lbl { font-size:11.5px; color:var(--txm); margin-bottom:3px; font-weight:500; }
+.stat-val { font-size:22px; font-weight:900; line-height:1; }
+.stat-sub { font-size:11px; color:var(--txm); margin-top:3px; }
+
+/* ===== TWO COL ===== */
+.two-col { display:grid; grid-template-columns:1.8fr 1fr; gap:14px; margin-bottom:14px; }
+
+/* ===== CARD ===== */
+.card { background:var(--sf); border:1px solid var(--bd); border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.06); overflow:hidden; display:flex; flex-direction:column; }
+.card-hd { padding:12px 16px; border-bottom:1px solid var(--bd); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.card-ttl { font-size:13.5px; font-weight:700; }
+.card-body { padding:14px; overflow:hidden; }
+.card-scroll { overflow-y:auto; }
+
+/* ===== TABLE ===== */
+.tbl-wrap { overflow-x:auto; flex:1; }
+table { width:100%; border-collapse:collapse; font-size:12.5px; }
+thead th { background:var(--sf2); padding:8px 12px; text-align:left; font-size:10.5px; font-weight:700; color:var(--txm); text-transform:uppercase; letter-spacing:.4px; border-bottom:1px solid var(--bd); white-space:nowrap; }
+tbody td { padding:9px 12px; border-bottom:1px solid var(--bd); color:var(--txs); }
+tbody tr:last-child td { border-bottom:none; }
+tbody tr:hover td { background:var(--sf2); }
+.tbl-name { font-weight:700; color:var(--tx); }
+.tbl-mono { font-family:monospace; font-size:11px; color:var(--txm); }
+
+/* ===== BADGE ===== */
+.badge { display:inline-flex; align-items:center; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:20px; }
+.bg  { background:var(--gl); color:var(--g); }
+.by  { background:var(--wl); color:var(--w); }
+.br  { background:var(--rl); color:var(--r); }
+.bb  { background:var(--pl); color:var(--p); }
+.bv  { background:var(--vl); color:var(--v); }
+.bgr { background:var(--sf2); color:var(--txm); }
+
+/* ===== ACTION BUTTONS ===== */
+.abt { height:27px; padding:0 9px; border-radius:6px; font-size:11.5px; font-weight:600; font-family:inherit; display:inline-flex; align-items:center; gap:4px; cursor:pointer; transition:.12s; }
+.abt-g { background:var(--gl); color:var(--g); border:1px solid #BBF7D0; }
+.abt-r { background:var(--rl); color:var(--r); border:1px solid #FECACA; }
+.abt-b { background:var(--pl); color:var(--p); border:1px solid #BFDBFE; }
+.abt-y { background:var(--wl); color:var(--w); border:1px solid #FDE68A; }
+.abt-v { background:var(--vl); color:var(--v); border:1px solid #DDD6FE; }
+
+/* ===== SEARCH ===== */
+.search-wrap { position:relative; }
+.search-wrap input { height:33px; border-radius:8px; border:1.5px solid var(--bd); padding:0 10px 0 30px; font-size:12.5px; font-family:inherit; color:var(--tx); background:var(--sf); outline:none; transition:.12s; }
+.search-wrap input:focus { border-color:var(--p); }
+.search-wrap::before { content:'🔍'; position:absolute; left:9px; top:50%; transform:translateY(-50%); font-size:12px; pointer-events:none; }
+.search-wrap input::placeholder { color:var(--txm); }
+
+/* ===== FORM ELS ===== */
+.form-row { margin-bottom:14px; }
+.form-lbl { display:block; font-size:11.5px; font-weight:700; color:var(--txs); margin-bottom:5px; text-transform:uppercase; letter-spacing:.3px; }
+.form-inp { width:100%; height:38px; border-radius:8px; border:1.5px solid var(--bd); padding:0 11px; font-size:13px; font-family:inherit; color:var(--tx); background:var(--sf); outline:none; transition:.12s; }
+.form-inp:focus { border-color:var(--p); }
+.form-sel { width:100%; height:38px; border-radius:8px; border:1.5px solid var(--bd); padding:0 11px; font-size:13px; font-family:inherit; color:var(--tx); background:var(--sf); outline:none; cursor:pointer; }
+
+/* ===== PAGINATION ===== */
+.pag { display:flex; align-items:center; gap:5px; padding:11px 14px; border-top:1px solid var(--bd); flex-shrink:0; }
+.pg-btn { height:29px; min-width:29px; padding:0 8px; border-radius:6px; border:1.5px solid var(--bd); background:var(--sf); font-size:12px; font-weight:600; color:var(--txs); cursor:pointer; transition:.12s; }
+.pg-btn:hover { border-color:var(--p); color:var(--p); }
+.pg-btn.active { background:var(--p); color:#fff; border-color:var(--p); }
+.pg-info { margin-left:auto; font-size:11.5px; color:var(--txm); }
+
+/* ===== MODAL ===== */
+.modal-ov {
+  position:fixed; inset:0; z-index:9000;
+  background:rgba(15,23,42,.55); backdrop-filter:blur(3px);
+  display:none; align-items:center; justify-content:center; padding:16px;
+}
+.modal-ov.open { display:flex; }
+.modal {
+  background:var(--sf); border-radius:14px;
+  width:100%; max-width:540px; max-height:88vh;
+  display:flex; flex-direction:column;
+  box-shadow:0 20px 60px rgba(0,0,0,.2);
+  animation:mAnim .18s ease;
+}
+.modal.modal-sm { max-width:400px; }
+@keyframes mAnim { from{transform:scale(.96);opacity:0} to{transform:scale(1);opacity:1} }
+.modal-hd { padding:16px 18px; border-bottom:1px solid var(--bd); display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.modal-ttl { font-size:14.5px; font-weight:800; }
+.modal-close { width:28px; height:28px; border-radius:50%; background:var(--sf2); font-size:14px; display:flex; align-items:center; justify-content:center; color:var(--txs); cursor:pointer; border:none; }
+.modal-body { padding:18px; overflow-y:auto; flex:1; }
+.modal-ft { padding:13px 18px; border-top:1px solid var(--bd); display:flex; justify-content:flex-end; gap:7px; flex-shrink:0; }
+.btn-cancel { height:35px; padding:0 14px; border-radius:8px; border:1.5px solid var(--bd); background:var(--sf); font-size:12.5px; font-weight:600; color:var(--txs); cursor:pointer; }
+.btn-primary { height:35px; padding:0 18px; border-radius:8px; background:var(--p); color:#fff; font-size:12.5px; font-weight:700; cursor:pointer; }
+.btn-danger { height:35px; padding:0 18px; border-radius:8px; background:var(--r); color:#fff; font-size:12.5px; font-weight:700; cursor:pointer; }
+
+/* ===== TOAST ===== */
+#toast { position:fixed; top:16px; right:16px; z-index:9999; background:var(--tx); color:#fff; padding:10px 18px; border-radius:9px; font-size:13px; font-weight:600; opacity:0; transform:translateY(-8px); transition:.25s; pointer-events:none; box-shadow:0 8px 24px rgba(0,0,0,.18); }
+#toast.show { opacity:1; transform:translateY(0); }
+#toast.ok { background:var(--g); }
+#toast.err { background:var(--r); }
+
+/* ===== SPINNER ===== */
+.spin { width:28px; height:28px; border:3px solid var(--bd); border-top-color:var(--p); border-radius:50%; animation:sp .65s linear infinite; margin:24px auto; }
+@keyframes sp { to{transform:rotate(360deg)} }
+
+/* ===== INFO GRID ===== */
+.info-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.info-box { background:var(--sf2); border-radius:8px; padding:10px 12px; }
+.info-box-lbl { font-size:10.5px; color:var(--txm); font-weight:600; text-transform:uppercase; letter-spacing:.3px; margin-bottom:3px; }
+.info-box-val { font-size:14px; font-weight:800; color:var(--tx); }
+
+/* ===== USER AVATAR ===== */
+.u-av { width:44px; height:44px; border-radius:50%; background:var(--p); display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff; font-weight:900; flex-shrink:0; }
+
+/* ===== TOOLBAR row ===== */
+.toolbar { display:flex; align-items:center; gap:8px; padding:10px 14px; border-bottom:1px solid var(--bd); flex-shrink:0; flex-wrap:wrap; }
+
+/* ===== CHART ===== */
+#dash-chart { height:220px; }
+
+/* ===== ACTIVITY ===== */
+.act-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--bd); font-size:12.5px; color:var(--txs); }
+.act-item:last-child { border-bottom:none; }
+.act-dot { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+/* ===== BALANCE FORM ===== */
+.bal-card { background:var(--sf); border:1px solid var(--bd); border-radius:10px; padding:16px; }
+.bal-card h4 { font-size:13px; font-weight:700; margin-bottom:12px; }
+
+/* ===== FINANCE STAT BOX ===== */
+.fin-stat { padding:14px; border-radius:10px; margin-bottom:10px; }
+.fin-stat-lbl { font-size:11px; font-weight:700; margin-bottom:4px; }
+.fin-stat-val { font-size:20px; font-weight:900; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ===== SIDEBAR ===== -->
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">🏘️</div>
+    <div class="sb-logo-text">Admin Panel</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-section">Asosiy</div>
+    <a class="sb-item" id="nav-dashboard" href="#" onclick="go('dashboard');return false;"><span class="sb-ico">📊</span> Dashboard</a>
+    <a class="sb-item" id="nav-users"     href="#" onclick="go('users');return false;"><span class="sb-ico">👥</span> Foydalanuvchilar</a>
+    <a class="sb-item" id="nav-ads"       href="#" onclick="go('ads');return false;"><span class="sb-ico">📢</span> E'lonlar</a>
+    <a class="sb-item" id="nav-places"    href="#" onclick="go('places');return false;"><span class="sb-ico">🏪</span> Do'konlar</a>
+    <div class="sb-section" style="margin-top:6px;">Moliya</div>
+    <a class="sb-item" id="nav-finance"   href="#" onclick="go('finance');return false;"><span class="sb-ico">💳</span> Balans</a>
+    <div class="sb-section" style="margin-top:6px;">Tizim</div>
+    <a class="sb-item" id="nav-settings"  href="#" onclick="go('settings');return false;"><span class="sb-ico">⚙️</span> Sozlamalar</a>
+    <a class="sb-item" id="nav-channels"  href="/admin/channels"><span class="sb-ico">📢</span> Kanal Boshqaruvi</a>
+  </nav>
+  <div class="sb-foot">
+    <div class="sb-user">
+      <div class="sb-av">A</div>
+      <div><div class="sb-uname">Admin</div><div class="sb-urole">Super Admin</div></div>
+    </div>
+    <a class="sb-item danger" href="/admin/logout"><span class="sb-ico">🚪</span> Chiqish</a>
+  </div>
+</aside>
+
+<!-- ===== MAIN ===== -->
+<div class="main">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="tb-title" id="tb-title">📊 Dashboard</div>
+    <div class="tb-actions">
+      <button class="tb-btn" onclick="refresh()">🔄 Yangilash</button>
+    </div>
+  </div>
+
+  <!-- Page content -->
+  <div class="page-area">
+
+    <!-- ========== DASHBOARD ========== -->
+    <div id="pg-dashboard" class="page-scroll">
+      <div class="stats-row" id="dash-stats"><div class="spin"></div></div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-hd">
+            <div class="card-ttl">📈 Faollik</div>
+            <select class="form-sel" style="width:100px;height:30px;" onchange="loadChart(this.value)">
+              <option value="7">7 kun</option><option value="14">14 kun</option><option value="30">30 kun</option>
+            </select>
+          </div>
+          <div class="card-body"><div id="dash-chart"></div></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">🕐 Faoliyat</div></div>
+          <div class="card-body" id="dash-activity"><div class="spin"></div></div>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">👥 Yangi foydalanuvchilar</div><button class="abt abt-b" onclick="go('users')">Barchasi →</button></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Ism</th><th>Username</th><th>Sana</th><th>Holat</th></tr></thead><tbody id="dash-users"></tbody></table></div>
+        </div>
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">📢 So'nggi e'lonlar</div></div>
+          <div class="tbl-wrap"><table><thead><tr><th>Sarlavha</th><th>Holat</th></tr></thead><tbody id="dash-ads"></tbody></table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== USERS ========== -->
+    <div id="pg-users" style="display:none;" class="page-area">
+      <div class="toolbar">
+        <div class="search-wrap"><input type="text" id="usr-search" placeholder="Qidirish..." oninput="searchUsers(this.value)"></div>
+        <select class="form-sel" style="width:120px;" id="usr-filter" onchange="loadUsers()">
+          <option value="">Barcha</option><option value="active">Faol</option><option value="blocked">Bloklangan</option>
+        </select>
+        <span id="usr-count" style="font-size:12px;color:var(--txm);margin-left:auto;"></span>
+      </div>
+      <div class="tbl-wrap" style="flex:1;overflow-y:auto;">
+        <table>
+          <thead><tr><th>#</th><th>Foydalanuvchi</th><th>Username</th><th>Telefon</th><th>Balans</th><th>E'lon</th><th>Sana</th><th>Holat</th><th>Amal</th></tr></thead>
+          <tbody id="usr-tbody"><tr><td colspan="9" style="text-align:center;padding:24px;"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pag" id="usr-pag"></div>
+    </div>
+
+    <!-- ========== ADS ========== -->
+    <div id="pg-ads" style="display:none;" class="page-area">
+      <div class="toolbar">
+        <div class="search-wrap"><input type="text" id="ads-search" placeholder="E'lon qidirish..." oninput="searchAds(this.value)"></div>
+        <select class="form-sel" style="width:120px;" id="ads-status" onchange="loadAds()">
+          <option value="">Barcha</option><option value="active">Faol</option><option value="pending">Kutilmoqda</option><option value="rejected">Rad etilgan</option>
+        </select>
+        <select class="form-sel" style="width:130px;" id="ads-cat" onchange="loadAds()">
+          <option value="">Barcha kategoriya</option>
+          <option value="housing">🏠 Uy-joy</option><option value="food">🍽 Ovqat</option>
+          <option value="grocery">🛒 Do'kon</option><option value="teahouse">🫖 Choyxona</option>
+          <option value="cafe">☕ Kafe</option><option value="qurilish">🏗 Qurilish</option>
+          <option value="barber">💈 Sartarosh</option><option value="beauty">💅 Go'zallik</option>
+          <option value="services">💼 Xizmat</option><option value="other">📦 Boshqa</option>
+        </select>
+      </div>
+      <div class="tbl-wrap" style="flex:1;overflow-y:auto;">
+        <table>
+          <thead><tr><th>Sarlavha</th><th>Muallif</th><th>Kategoriya</th><th>Narx</th><th>Sana</th><th>Holat</th><th>Amal</th></tr></thead>
+          <tbody id="ads-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pag" id="ads-pag"></div>
+    </div>
+
+    <!-- ========== PLACES ========== -->
+    <div id="pg-places" style="display:none;" class="page-area">
+      <div class="toolbar">
+        <div class="search-wrap"><input type="text" id="pl-search" placeholder="Do'kon qidirish..." oninput="searchPlaces(this.value)"></div>
+        <select class="form-sel" style="width:130px;" id="pl-status" onchange="loadPlaces()">
+          <option value="">Barcha</option><option value="active">Faol</option><option value="pending">Kutilmoqda</option><option value="blocked">Bloklangan</option>
+        </select>
+        <span id="pl-count" style="font-size:12px;color:var(--txm);margin-left:auto;"></span>
+      </div>
+      <div class="tbl-wrap" style="flex:1;overflow-y:auto;">
+        <table>
+          <thead><tr><th>Do'kon</th><th>Egasi</th><th>Kategoriya</th><th>Telefon</th><th>Sana</th><th>Holat</th><th>Amal</th></tr></thead>
+          <tbody id="pl-tbody"><tr><td colspan="7" style="text-align:center;padding:24px;"><div class="spin"></div></td></tr></tbody>
+        </table>
+      </div>
+      <div class="pag" id="pl-pag"></div>
+    </div>
+
+    <!-- ========== FINANCE ========== -->
+    <div id="pg-finance" style="display:none;" class="page-scroll">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+        <div class="bal-card">
+          <h4>💳 Balans Qo'shish</h4>
+          <div class="form-row"><label class="form-lbl">Telegram ID</label><input type="number" class="form-inp" id="bal-tid" placeholder="Foydalanuvchi Telegram ID"></div>
+          <div class="form-row"><label class="form-lbl">Miqdor (so'm)</label><input type="number" class="form-inp" id="bal-amt" placeholder="Masalan: 50000"></div>
+          <div class="form-row"><label class="form-lbl">Izoh</label><input type="text" class="form-inp" id="bal-note" placeholder="Admin tomonidan..."></div>
+          <button class="btn-primary" style="width:100%;height:38px;border-radius:8px;font-size:13px;" onclick="addBalance()">➕ Qo'shish</button>
+        </div>
+        <div class="bal-card">
+          <h4>📊 Moliyaviy Ko'rsatkichlar</h4>
+          <div id="fin-stats"><div class="spin"></div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-hd"><div class="card-ttl">📋 Balans Tarixi</div></div>
+        <div class="tbl-wrap"><table>
+          <thead><tr><th>Foydalanuvchi</th><th>Miqdor</th><th>Amal</th><th>Izoh</th><th>Sana</th></tr></thead>
+          <tbody id="fin-tbody"><tr><td colspan="5" style="text-align:center;padding:24px;"><div class="spin"></div></td></tr></tbody>
+        </table></div>
+      </div>
+    </div>
+
+    <!-- ========== SETTINGS ========== -->
+    <div id="pg-settings" style="display:none;" class="page-scroll">
+      <div class="card" style="max-width:560px;">
+        <div class="card-hd"><div class="card-ttl">⚙️ Tizim Sozlamalari</div></div>
+        <div class="card-body">
+          <div class="form-row"><label class="form-lbl" for="settings-admin-link">Administrator aloqa havolasi</label><input id="settings-admin-link" type="url" class="form-inp" placeholder="https://t.me/username"></div>
+          <div class="form-row"><label class="form-lbl"><input id="settings-approval" type="checkbox"> Yangi e'lonlar administrator tasdig'idan o'tsin</label></div>
+          <div class="form-row"><label class="form-lbl"><input id="settings-auto-post" type="checkbox"> Tasdiqlangan e'lonlar kanallarga avtomatik yuborilsin</label></div>
+          <button class="btn-primary" id="settings-save" onclick="saveSettings()">💾 Saqlash</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-area -->
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- ===== USER MODAL ===== -->
+<div class="modal-ov" id="user-modal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-ttl">👤 Foydalanuvchi Ma'lumotlari</div>
+      <button class="modal-close" onclick="closeModal('user-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="user-modal-body"><div class="spin"></div></div>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="closeModal('user-modal')">Yopish</button>
+      <button class="btn-primary" id="user-modal-bal-btn" style="display:none;" onclick="openUserBalance()">💳 Balans</button>
+      <button class="btn-danger"  id="user-modal-blk-btn" style="display:none;" onclick="toggleUserBlock()">🚫 Bloklash</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PLACE MODAL ===== -->
+<div class="modal-ov" id="place-modal">
+  <div class="modal">
+    <div class="modal-hd">
+      <div class="modal-ttl">🏪 Do'kon Ma'lumotlari</div>
+      <button class="modal-close" onclick="closeModal('place-modal')">✕</button>
+    </div>
+    <div class="modal-body" id="place-modal-body"><div class="spin"></div></div>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="closeModal('place-modal')">Yopish</button>
+      <button class="btn-primary" id="pl-approve-btn" style="display:none;" onclick="placeAction('approve')">✅ Tasdiqlash</button>
+      <button class="abt abt-v"  id="pl-verify-btn"  style="display:none;height:35px;padding:0 14px;border-radius:8px;font-size:12.5px;" onclick="placeAction('verify')">🏆 Verify</button>
+      <button class="btn-danger"  id="pl-delete-btn" onclick="placeAction('delete')">🗑 O'chirish</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== BALANCE MODAL ===== -->
+<div class="modal-ov" id="bal-modal">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <div class="modal-ttl">💳 Balans Qo'shish</div>
+      <button class="modal-close" onclick="closeModal('bal-modal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row"><label class="form-lbl">Miqdor (so'm)</label><input type="number" class="form-inp" id="qbal-amt" placeholder="Masalan: 50000"></div>
+      <div class="form-row"><label class="form-lbl">Izoh</label><input type="text" class="form-inp" id="qbal-note" placeholder="Admin tomonidan..."></div>
+    </div>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="closeModal('bal-modal')">Bekor</button>
+      <button class="btn-primary" onclick="confirmBalance()">➕ Qo'shish</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CONFIRM MODAL ===== -->
+<div class="modal-ov" id="confirm-modal">
+  <div class="modal modal-sm">
+    <div class="modal-hd">
+      <div class="modal-ttl" id="confirm-ttl">Tasdiqlash</div>
+      <button class="modal-close" onclick="closeModal('confirm-modal')">✕</button>
+    </div>
+    <div class="modal-body"><p id="confirm-msg" style="font-size:13.5px;color:var(--txs);line-height:1.5;"></p></div>
+    <div class="modal-ft">
+      <button class="btn-cancel" onclick="closeModal('confirm-modal')">Bekor</button>
+      <button class="btn-danger"  id="confirm-ok-btn">Tasdiqlash</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ===== CONFIG =====
+const ROOT    = '';
+const AAPI    = ROOT + '/api/admin';
+const ADSAPI  = ROOT + '/api/ads';
+
+// ===== STATE =====
+let curPage   = 'dashboard';
+let usrPage   = 1; let usrTotal = 0; let usrData = [];
+let adsPage   = 1; let adsTotal = 0; let adsData = [];
+let plPage    = 1; let plTotal  = 0; let plData  = [];
+let curUserId = null; let curUserBlocked = false;
+let curPlaceId = null;
+let dashChart = null;
+
+const CATS = {
+  housing:'🏠', food:'🍽️', grocery:'🛒', teahouse:'🫖', cafe:'☕',
+  qurilish:'🏗️', barber:'💈', beauty:'💅', clothing:'👗', pharmacy:'💊',
+  hardware:'🔧', repair:'🔨', services:'💼', entertainment:'🎪', other:'📦'
+};
+
+// ===== NAVIGATION =====
+function go(page) {
+  curPage = page;
+  document.querySelectorAll('[id^="pg-"]').forEach(p => p.style.display = 'none');
+  const pg = document.getElementById('pg-' + page);
+  if (pg) pg.style.display = ['users','ads','places'].includes(page) ? 'flex' : 'block';
+  pg?.style && (pg.style.flexDirection = 'column');
+
+  document.querySelectorAll('.sb-item').forEach(n => n.classList.remove('active'));
+  const ni = document.getElementById('nav-' + page);
+  if (ni) ni.classList.add('active');
+
+  const titles = { dashboard:'📊 Dashboard', users:'👥 Foydalanuvchilar', ads:"📢 E'lonlar", places:"🏪 Do'konlar", finance:'💳 Balans', settings:'⚙️ Sozlamalar' };
+  document.getElementById('tb-title').textContent = titles[page] || page;
+
+  if (page === 'dashboard') loadDashboard();
+  else if (page === 'users')    loadUsers(1);
+  else if (page === 'ads')      loadAds(1);
+  else if (page === 'places')   loadPlaces(1);
+  else if (page === 'finance')  loadFinance();
+  else if (page === 'settings') loadSettings();
+}
+function refresh() { go(curPage); }
+
+// ===== UTILITY =====
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show' + (type?' '+type:'');
+  setTimeout(() => t.className = '', 3200);
+}
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function fmtDate(d) { if(!d) return '—'; try{ return new Date(d).toLocaleDateString('uz-UZ',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch{return d;} }
+function fmtNum(n)  { return (n||0).toLocaleString(); }
+function statusBadge(s) {
+  const m = { active:'<span class="badge bg">✅ Faol</span>', pending:'<span class="badge by">⏳ Kutilmoqda</span>', blocked:'<span class="badge br">🚫 Bloklangan</span>', rejected:'<span class="badge br">❌ Rad etilgan</span>', inactive:'<span class="badge bgr">⬜ Nofaol</span>' };
+  return m[s] || `<span class="badge bgr">${s}</span>`;
+}
+function safeApiData(value) {
+  if (typeof value === 'string') return value.replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  if (Array.isArray(value)) return value.map(safeApiData);
+  if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key,item]) => [key,safeApiData(item)]));
+  return value;
+}
+async function apiGet(url) { const r = await fetch(url); if(!r.ok) throw new Error(`HTTP ${r.status}`); return safeApiData(await r.json()); }
+async function apiPost(url, body) { const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return r.json(); }
+async function apiDel(url) { const r = await fetch(url,{method:'DELETE'}); return r.json(); }
+
+async function loadSettings() {
+  try {
+    const data = await apiGet(ROOT + '/api/settings/');
+    document.getElementById('settings-admin-link').value = data.admin_contact_link || '';
+    document.getElementById('settings-approval').checked = Boolean(data.require_approval);
+    document.getElementById('settings-auto-post').checked = Boolean(data.auto_post_to_channel);
+  } catch (error) {
+    showToast('Sozlamalarni yuklab bo\'lmadi: ' + error.message, 'err');
+  }
+}
+
+async function saveSettings() {
+  const button = document.getElementById('settings-save');
+  button.disabled = true;
+  try {
+    const result = await apiPost(ROOT + '/api/settings/', {
+      admin_contact_link: document.getElementById('settings-admin-link').value.trim(),
+      require_approval: document.getElementById('settings-approval').checked,
+      auto_post_to_channel: document.getElementById('settings-auto-post').checked,
+    });
+    if (result.status !== 'success') throw new Error(result.detail || 'Saqlashda xatolik');
+    showToast(result.message, 'ok');
+  } catch (error) {
+    showToast(error.message, 'err');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+function renderPag(containerId, total, perPage, cur, loadFn) {
+  const tp = Math.ceil(total / perPage);
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (tp <= 1) { c.innerHTML = `<span class="pg-info">Jami: ${fmtNum(total)} ta</span>`; return; }
+  let html = '';
+  if (cur > 1) html += `<button class="pg-btn" onclick="${loadFn.name}(${cur-1})">←</button>`;
+  for (let i = Math.max(1,cur-2); i <= Math.min(tp,cur+2); i++)
+    html += `<button class="pg-btn${i===cur?' active':''}" onclick="${loadFn.name}(${i})">${i}</button>`;
+  if (cur < tp) html += `<button class="pg-btn" onclick="${loadFn.name}(${cur+1})">→</button>`;
+  html += `<span class="pg-info">Jami: ${fmtNum(total)} ta</span>`;
+  c.innerHTML = html;
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  await Promise.all([loadDashStats(), loadChart(7), loadDashUsers(), loadDashAds(), loadDashActivity()]);
+}
+
+async function loadDashStats() {
+  const g = document.getElementById('dash-stats');
+  try {
+    const d = await apiGet(AAPI + '/stats/summary');
+    g.innerHTML = `
+    <div class="stat-card"><div class="stat-ico" style="background:#EFF6FF;">👥</div><div><div class="stat-lbl">Foydalanuvchilar</div><div class="stat-val">${fmtNum(d.total_users)}</div><div class="stat-sub">Bugun: +${d.today_users||0}</div></div></div>
+    <div class="stat-card"><div class="stat-ico" style="background:#F0FDF4;">📢</div><div><div class="stat-lbl">Faol E'lonlar</div><div class="stat-val">${fmtNum(d.active_listings)}</div><div class="stat-sub">Jami aktiv</div></div></div>
+    <div class="stat-card"><div class="stat-ico" style="background:#FFFBEB;">🏪</div><div><div class="stat-lbl">Do'konlar</div><div class="stat-val">${fmtNum(d.total_places)}</div><div class="stat-sub">Kutilmoqda: ${d.pending_places||0}</div></div></div>
+    <div class="stat-card"><div class="stat-ico" style="background:#FEF2F2;">🚫</div><div><div class="stat-lbl">Bot bloklagan</div><div class="stat-val">${fmtNum(d.blocked_bot)}</div><div class="stat-sub">Foydalanuvchilar</div></div></div>`;
+  } catch(e) { g.innerHTML = `<p style="color:var(--r);padding:12px;">Xatolik: ${e.message}</p>`; }
+}
+
+async function loadChart(days) {
+  const el = document.getElementById('dash-chart');
+  try {
+    const d = await apiGet(AAPI + '/stats/chart?days=' + days);
+    if (dashChart) { dashChart.destroy(); dashChart = null; }
+    el.innerHTML = '';
+    dashChart = new ApexCharts(el, {
+      series: [{ name: 'Yangi foydalanuvchilar', data: d.datasets?.new_users || [] }],
+      chart: { type:'area', height:220, fontFamily:'Inter,sans-serif', toolbar:{show:false}, background:'transparent', sparkline:{enabled:false} },
+      colors: ['#3B82F6'],
+      fill: { type:'gradient', gradient:{shadeIntensity:1,opacityFrom:.35,opacityTo:.02,stops:[0,90,100]} },
+      dataLabels: { enabled:false },
+      stroke: { curve:'smooth', width:2 },
+      xaxis: { categories: d.labels||[], labels:{style:{colors:'#94A3B8',fontSize:'11px'}}, axisBorder:{show:false}, axisTicks:{show:false} },
+      yaxis: { labels:{style:{colors:'#94A3B8',fontSize:'11px'}} },
+      grid: { borderColor:'#E2E8F0', strokeDashArray:4 },
+      tooltip: { y:{formatter:v=>v+' ta'} }
+    });
+    dashChart.render();
+  } catch(e) { el.innerHTML = '<div style="text-align:center;color:var(--txm);padding:40px;font-size:13px;">Grafik yuklanmadi</div>'; }
+}
+
+async function loadDashUsers() {
+  const tb = document.getElementById('dash-users');
+  try {
+    const d = await apiGet(AAPI + '/users?limit=5');
+    const users = d.users || [];
+    tb.innerHTML = users.length
+      ? users.map(u => `<tr><td><span class="tbl-name">${u.full_name||'—'}</span></td><td style="color:var(--txm)">@${u.username||'—'}</td><td>${fmtDate(u.created_at)}</td><td>${statusBadge(u.is_blocked?'blocked':'active')}</td></tr>`).join('')
+      : '<tr><td colspan="4" style="text-align:center;padding:16px;color:var(--txm)">Yo\'q</td></tr>';
+  } catch { tb.innerHTML = '<tr><td colspan="4" style="color:var(--r);padding:12px;text-align:center">Yuklanmadi</td></tr>'; }
+}
+
+async function loadDashAds() {
+  const tb = document.getElementById('dash-ads');
+  try {
+    const d = await apiGet(ADSAPI + '/list?limit=5');
+    const ads = d.ads || [];
+    tb.innerHTML = ads.length
+      ? ads.map(a => `<tr><td><span class="tbl-name" style="max-width:130px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.title||'—'}</span></td><td>${statusBadge(a.status||'active')}</td></tr>`).join('')
+      : '<tr><td colspan="2" style="text-align:center;padding:16px;color:var(--txm)">Yo\'q</td></tr>';
+  } catch { tb.innerHTML = '<tr><td colspan="2" style="color:var(--r);padding:12px;text-align:center">Yuklanmadi</td></tr>'; }
+}
+
+function loadDashActivity() {
+  document.getElementById('dash-activity').innerHTML = `
+    <div class="act-item"><div class="act-dot" style="background:var(--g)"></div><span>Tizim ishlamoqda ✅</span></div>
+    <div class="act-item"><div class="act-dot" style="background:var(--p)"></div><span>API so'rovlari normal</span></div>
+    <div class="act-item"><div class="act-dot" style="background:var(--w)"></div><span>Kutilayotgan do'konlar bor</span></div>
+    <div class="act-item"><div class="act-dot" style="background:var(--p)"></div><span>Bot webhook ulangan</span></div>`;
+}
+
+// ===== USERS =====
+async function loadUsers(page=1) {
+  usrPage = page;
+  const tb = document.getElementById('usr-tbody');
+  tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;"><div class="spin"></div></td></tr>';
+  try {
+    const skip   = (page-1)*20;
+    const d      = await apiGet(AAPI + `/users?limit=20&skip=${skip}`);
+    usrData      = d.users || [];
+    usrTotal     = d.total || 0;
+    document.getElementById('usr-count').textContent = `Jami: ${fmtNum(usrTotal)} ta`;
+    renderUsersTable(usrData);
+    renderPag('usr-pag', usrTotal, 20, page, loadUsers);
+  } catch(e) { tb.innerHTML = `<tr><td colspan="9" style="color:var(--r);text-align:center;padding:20px;">Xatolik: ${e.message}</td></tr>`; }
+}
+
+function renderUsersTable(users) {
+  const tb = document.getElementById('usr-tbody');
+  if (!users.length) { tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--txm)">Foydalanuvchilar topilmadi</td></tr>'; return; }
+  tb.innerHTML = users.map((u,i) => `
+    <tr>
+      <td><span class="tbl-mono">${(usrPage-1)*20+i+1}</span></td>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:30px;height:30px;border-radius:50%;background:var(--p);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;flex-shrink:0;">${(u.full_name||'M').charAt(0)}</div>
+          <div>
+            <div class="tbl-name">${u.full_name||'—'}</div>
+            <div class="tbl-mono">ID: ${u.tg_id||u.id}</div>
+          </div>
+        </div>
+      </td>
+      <td style="color:var(--txm)">@${u.username||'—'}</td>
+      <td>${u.phone||'—'}</td>
+      <td><b style="color:var(--p)">${fmtNum(Math.floor(u.balance||0))}</b> <span style="font-size:10px;color:var(--txm)">so'm</span></td>
+      <td><span class="badge bb">${u.ad_count||0} ta</span></td>
+      <td>${fmtDate(u.created_at)}</td>
+      <td>${statusBadge(u.is_blocked?'blocked':'active')}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:nowrap;">
+          <button class="abt abt-b" onclick="viewUser('${u.tg_id||u.id}','${(u.full_name||'').replace(/'/g,"\\'")}',${!!u.is_blocked})">👁</button>
+          <button class="abt abt-y" onclick="quickBalance(${u.tg_id||u.id})">💳</button>
+          ${u.is_blocked
+            ? `<button class="abt abt-g" onclick="blockUser(${u.tg_id||u.id},false)">✅</button>`
+            : `<button class="abt abt-r" onclick="blockUser(${u.tg_id||u.id},true)">🚫</button>`}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function searchUsers(q) {
+  if (!q.trim()) { renderUsersTable(usrData); return; }
+  const f = usrData.filter(u => (u.full_name||'').toLowerCase().includes(q.toLowerCase()) || (u.username||'').toLowerCase().includes(q.toLowerCase()) || String(u.tg_id||'').includes(q));
+  renderUsersTable(f);
+}
+
+async function viewUser(tgId, name, isBlocked) {
+  curUserId = tgId; curUserBlocked = isBlocked;
+  const body = document.getElementById('user-modal-body');
+  body.innerHTML = '<div class="spin"></div>';
+  document.getElementById('user-modal-bal-btn').style.display = 'inline-flex';
+  document.getElementById('user-modal-blk-btn').textContent = isBlocked ? '✅ Blokdan chiqarish' : '🚫 Bloklash';
+  document.getElementById('user-modal-blk-btn').style.display = 'inline-flex';
+  openModal('user-modal');
+  try {
+    const u = await apiGet(AAPI + `/users/${tgId}`);
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--sf2);border-radius:10px;margin-bottom:14px;">
+        <div class="u-av">${(u.full_name||'M').charAt(0)}</div>
+        <div>
+          <div style="font-size:15px;font-weight:800;">${u.full_name||'—'} ${u.is_blocked?'<span class="badge br">Bloklangan</span>':''}</div>
+          <div style="color:var(--txm);font-size:12px;">@${u.username||'—'} · Telegram ID: ${u.tg_id}</div>
+          <div style="color:var(--txm);font-size:12px;">📱 ${u.phone||'Telefon yo\'q'}</div>
+        </div>
+      </div>
+      <div class="info-grid" style="margin-bottom:14px;">
+        <div class="info-box"><div class="info-box-lbl">Balans</div><div class="info-box-val" style="color:var(--p)">${fmtNum(Math.floor(u.balance||0))} so'm</div></div>
+        <div class="info-box"><div class="info-box-lbl">E'lon limiti</div><div class="info-box-val">${u.ad_limit||3} ta</div></div>
+        <div class="info-box"><div class="info-box-lbl">Ro'yxatga kirish</div><div class="info-box-val" style="font-size:13px;">${fmtDate(u.created_at)}</div></div>
+        <div class="info-box"><div class="info-box-lbl">Holat</div><div class="info-box-val" style="font-size:13px;">${u.is_blocked?'🚫 Bloklangan':'✅ Faol'}</div></div>
+      </div>
+      <div class="form-row">
+        <label class="form-lbl">E'lon Limitini O'zgartirish</label>
+        <div style="display:flex;gap:8px;">
+          <input type="number" class="form-inp" id="usr-limit-inp" value="${u.ad_limit||3}" style="flex:1;">
+          <button class="btn-primary" style="padding:0 14px;" onclick="changeLimit(${u.tg_id})">Saqlash</button>
+        </div>
+      </div>`;
+  } catch(e) { body.innerHTML = `<p style="color:var(--r);">Yuklanmadi: ${e.message}</p>`; }
+}
+
+function openUserBalance() {
+  if (!curUserId) return;
+  document.getElementById('qbal-amt').value = '';
+  document.getElementById('qbal-note').value = '';
+  openModal('bal-modal');
+}
+
+async function confirmBalance() {
+  const amt  = parseFloat(document.getElementById('qbal-amt').value);
+  const note = document.getElementById('qbal-note').value || 'Admin tomonidan';
+  if (!amt || amt <= 0) { showToast('Miqdor kiriting','err'); return; }
+  try {
+    const tgId = curUserId || document.getElementById('bal-tid')?.value;
+    const r = await apiPost(AAPI + '/finance/add-balance', { tg_id: parseInt(tgId), amount: amt, note });
+    if (r.status === 'success') { showToast(`✅ ${fmtNum(amt)} so'm qo'shildi`,'ok'); closeModal('bal-modal'); loadUsers(usrPage); }
+    else showToast(r.detail||'Xatolik','err');
+  } catch(e) { showToast('Xatolik','err'); }
+}
+
+async function toggleUserBlock() {
+  if (!curUserId) return;
+  try {
+    const action = curUserBlocked ? 'unblock' : 'block';
+    const r = await apiPost(AAPI + `/users/${curUserId}/${action}`, {});
+    if (r.status === 'success') {
+      showToast(curUserBlocked ? '✅ Blok olib tashlandi' : '🚫 Bloklandi', curUserBlocked ? 'ok' : 'err');
+      closeModal('user-modal'); loadUsers(usrPage);
+    } else showToast(r.detail||'Xatolik','err');
+  } catch(e) { showToast('Xatolik','err'); }
+}
+
+async function blockUser(tgId, block) {
+  try {
+    const r = await apiPost(AAPI + `/users/${tgId}/${block?'block':'unblock'}`, {});
+    if (r.status === 'success') { showToast(block?'🚫 Bloklandi':'✅ Blok olib tashlandi', block?'err':'ok'); loadUsers(usrPage); }
+    else showToast(r.detail||'Xatolik','err');
+  } catch(e) { showToast('Xatolik','err'); }
+}
+
+function quickBalance(tgId) {
+  curUserId = tgId;
+  document.getElementById('qbal-amt').value = '';
+  document.getElementById('qbal-note').value = '';
+  openModal('bal-modal');
+}
+
+async function changeLimit(tgId) {
+  const val = parseInt(document.getElementById('usr-limit-inp').value);
+  if (!val || val < 1) { showToast('Limit kiriting','err'); return; }
+  try {
+    const r = await apiPost(AAPI + `/users/${tgId}/update-limit?new_limit=${val}`, {});
+    if (r.status === 'success') { showToast('✅ Limit yangilandi','ok'); }
+    else showToast(r.detail||'Xatolik','err');
+  } catch(e) { showToast('Xatolik','err'); }
+}
+
+// ===== ADS =====
+async function loadAds(page=1) {
+  adsPage = page;
+  const tb = document.getElementById('ads-tbody');
+  tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;"><div class="spin"></div></td></tr>';
+  try {
+    const status = document.getElementById('ads-status')?.value||'';
+    const cat    = document.getElementById('ads-cat')?.value||'';
+    const skip   = (page-1)*20;
+    let url = AAPI + `/ads/list?limit=20&skip=${skip}`;
+    if (status) url += `&status=${status}`;
+    if (cat)    url += `&category=${cat}`;
+    const d = await apiGet(url);
+    adsData  = d.ads || [];
+    adsTotal = d.total || 0;
+    renderAdsTable(adsData);
+    renderPag('ads-pag', adsTotal, 20, page, loadAds);
+  } catch(e) { tb.innerHTML = `<tr><td colspan="7" style="color:var(--r);text-align:center;padding:20px;">Xatolik: ${e.message}</td></tr>`; }
+}
+
+function renderAdsTable(ads) {
+  const tb = document.getElementById('ads-tbody');
+  if (!ads.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--txm)">E\'lonlar topilmadi</td></tr>'; return; }
+  tb.innerHTML = ads.map(a => `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:32px;height:32px;border-radius:6px;background:var(--sf2);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${a.cat_icon||CATS[a.category]||'📦'}</div>
+          <div class="tbl-name" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.title||'—'}</div>
+        </div>
+      </td>
+      <td style="color:var(--txm);font-size:12px;">${a.owner_name||a.seller||'—'}</td>
+      <td><span class="badge bb">${a.cat_icon||''} ${a.cat_name||a.category||'—'}</span></td>
+      <td><b style="color:var(--p)">${a.price||'Kelishiladi'}</b></td>
+      <td>${fmtDate(a.created_at)}</td>
+      <td>${statusBadge(a.status||'active')}</td>
+      <td>
+        <div style="display:flex;gap:4px;">
+          ${a.status==='pending'?`<button class="abt abt-g" onclick="moderateAd('${a.id}','approve')">✅</button>`:''}
+          <button class="abt abt-r" onclick="deleteAdConfirm('${a.id}','${(a.title||'').replace(/'/g,"\\'")}')">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function searchAds(q) {
+  if (!q.trim()) { renderAdsTable(adsData); return; }
+  renderAdsTable(adsData.filter(a => (a.title||'').toLowerCase().includes(q.toLowerCase())));
+}
+
+async function moderateAd(adId, action) {
+  try {
+    const r = await apiPost(AAPI + `/ads/${adId}/${action}`, {});
+    if (r.status === 'success') { showToast(action==='approve'?"✅ Tasdiqlandi":"❌ Rad etildi", action==='approve'?'ok':'err'); loadAds(adsPage); }
+    else showToast(r.detail||'Xatolik','err');
+  } catch(e) { showToast('Xatolik','err'); }
+}
+
+function deleteAdConfirm(adId, title) {
+  document.getElementById('confirm-ttl').textContent = "E'lonni o'chirish";
+  document.getElementById('confirm-msg').innerHTML = `«<b>${title}</b>» e'lonini o'chirasizmi? Bu amalni qaytarib bo'lmaydi.`;
+  document.getElementById('confirm-ok-btn').onclick = async () => {
+    closeModal('confirm-modal');
+    try {
+      const r = await apiDel(AAPI + `/ads/${adId}`);
+      if (r.status === 'success') { showToast("✅ O'chirildi",'ok'); loadAds(adsPage); }
+      else showToast(r.detail||'Xatolik','err');
+    } catch(e) { showToast('Xatolik','err'); }
+  };
+  openModal('confirm-modal');
+}
+
+// ===== PLACES =====
+async function loadPlaces(page=1) {
+  plPage = page;
+  const tb = document.getElementById('pl-tbody');
+  tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;"><div class="spin"></div></td></tr>';
+  try {
+    const status = document.getElementById('pl-status')?.value||'';
+    const skip   = (page-1)*20;
+    let url = AAPI + `/places?limit=20&skip=${skip}`;
+    if (status) url += `&status=${status}`;
+    const d  = await apiGet(url);
+    plData   = d.places || [];
+    plTotal  = d.total || 0;
+    document.getElementById('pl-count').textContent = `Jami: ${fmtNum(plTotal)} ta`;
+    renderPlacesTable(plData);
+    renderPag('pl-pag', plTotal, 20, page, loadPlaces);
+  } catch(e) { tb.innerHTML = `<tr><td colspan="7" style="color:var(--r);text-align:center;padding:20px;">Xatolik: ${e.message}</td></tr>`; }
+}
+
+function renderPlacesTable(places) {
+  const tb = document.getElementById('pl-tbody');
+  if (!places.length) { tb.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--txm)">Do\'konlar topilmadi</td></tr>'; return; }
+  tb.innerHTML = places.map(p => `
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--pl);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">${p.cat_icon||CATS[p.category]||'🏪'}</div>
+          <div><div class="tbl-name">${p.name||'—'} ${p.is_verified?'✅':''}</div></div>
+        </div>
+      </td>
+      <td style="color:var(--txm);font-size:12px;">${p.owner_name||'—'}</td>
+      <td><span class="badge bb">${p.cat_icon||''} ${p.cat_name||p.category||'—'}</span></td>
+      <td>${p.phone||'—'}</td>
+      <td>${fmtDate(p.created_at)}</td>
+      <td>${statusBadge(p.status||'pending')}</td>
+      <td>
+        <div style="display:flex;gap:4px;">
+          <button class="abt abt-b" onclick="viewPlace('${p.id}')">👁</button>
+          ${p.status==='pending'?`<button class="abt abt-g" onclick="fastApprovePlace('${p.id}')">✅</button>`:''}
+          ${!p.is_verified?`<button class="abt abt-v" onclick="fastVerifyPlace('${p.id}')">🏆</button>`:''}
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function searchPlaces(q) {
+  if (!q.trim()) { renderPlacesTable(plData); return; }
+  renderPlacesTable(plData.filter(p => (p.name||'').toLowerCase().includes(q.toLowerCase())));
+}
+
+async function viewPlace(placeId) {
+  curPlaceId = placeId;
+  const body = document.getElementById('place-modal-body');
+  body.innerHTML = '<div class="spin"></div>';
+  openModal('place-modal');
+  try {
+    const p  = await apiGet(AAPI + `/places?skip=0&limit=100`);
+    const pl = (p.places||[]).find(x => x.id === placeId);
+    if (!pl) { body.innerHTML = '<p style="color:var(--r)">Topilmadi</p>'; return; }
+
+    const isApprove = pl.status === 'pending';
+    const isVerify  = !pl.is_verified;
+    document.getElementById('pl-approve-btn').style.display = isApprove ? 'inline-flex' : 'none';
+    document.getElementById('pl-verify-btn').style.display  = isVerify  ? 'inline-flex' : 'none';
+
+    body.innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px;background:var(--sf2);border-radius:10px;margin-bottom:14px;">
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--pl);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">${pl.cat_icon||'🏪'}</div>
+        <div>
+          <div style="font-size:15px;font-weight:800;">${pl.name||'—'} ${pl.is_verified?'✅':''}</div>
+          <div style="color:var(--txm);font-size:12px;">${pl.cat_icon||''} ${pl.cat_name||pl.category||'—'} · ${statusBadge(pl.status||'pending')}</div>
+          <div style="color:var(--txm);font-size:12px;">👤 ${pl.owner_name||'—'}</div>
+        </div>
+      </div>
+      <div class="info-grid">
+        <div class="info-box"><div class="info-box-lbl">Telefon</div><div class="info-box-val" style="font-size:13px;">${pl.phone||'—'}</div></div>
+        <div class="info-box"><div class="info-box-lbl">Manzil</div><div class="info-box-val" style="font-size:13px;">${pl.address||'—'}</div></div>
+        <div class="info-box"><div class="info-box-lbl">Egasi</div><div class="info-box-val" style="font-size:13px;">${pl.owner_name||'—'}</div></div>
+        <div class="info-box"><div class="info-box-lbl">Qo'shilgan</div><div class="info-box-val" style="font-size:13px;">${fmtDate(pl.created_at)}</div></div>
+      </div>`;
+  } catch(e) { body.innerHTML = `<p style="color:var(--r)">Xatolik: ${e.message}</p>`; }
+}
+
+async function placeAction(action) {
+  if (!curPlaceId) return;
+  if (action === 'delete') {
+    document.getElementById('confirm-ttl').textContent = "Do'konni o'chirish";
+    document.getElementById('confirm-msg').innerHTML = 'Bu do\'konni o\'chirasizmi?';
+    document.getElementById('confirm-ok-btn').onclick = async () => {
+      closeModal('confirm-modal');
+      try { const r = await apiDel(AAPI + `/places/${curPlaceId}`); if(r.status==='success'){showToast("✅ O'chirildi",'ok');closeModal('place-modal');loadPlaces(plPage);} } catch(e){}
+    };
+    openModal('confirm-modal'); return;
+  }
+  try {
+    const r = await apiPost(AAPI + `/places/${curPlaceId}/${action}`, {});
+    if (r.status === 'success') { showToast('✅ Muvaffaqiyatli','ok'); closeModal('place-modal'); loadPlaces(plPage); }
+    else showToast(r.detail||'Xatolik','err');
+  } catch(e) { showToast('Xatolik','err'); }
+}
+
+async function fastApprovePlace(id) {
+  try { const r = await apiPost(AAPI+`/places/${id}/approve`,{}); if(r.status==='success'){showToast('✅ Tasdiqlandi','ok');loadPlaces(plPage);}else showToast(r.detail||'Xatolik','err'); } catch(e){showToast('Xatolik','err');}
+}
+async function fastVerifyPlace(id) {
+  try { const r = await apiPost(AAPI+`/places/${id}/verify`,{}); if(r.status==='success'){showToast('🏆 Verified!','ok');loadPlaces(plPage);}else showToast(r.detail||'Xatolik','err'); } catch(e){showToast('Xatolik','err');}
+}
+
+// ===== FINANCE =====
+async function loadFinance() {
+  const statsDiv = document.getElementById('fin-stats');
+  const tb = document.getElementById('fin-tbody');
+  try {
+    const d = await apiGet(AAPI + '/finance/summary');
+    statsDiv.innerHTML = `
+      <div class="fin-stat" style="background:var(--pl);">
+        <div class="fin-stat-lbl" style="color:var(--p)">Jami Balanslar Yig'indisi</div>
+        <div class="fin-stat-val" style="color:var(--p)">${fmtNum(Math.floor(d.total_balance))} so'm</div>
+      </div>
+      <div class="fin-stat" style="background:var(--gl);">
+        <div class="fin-stat-lbl" style="color:var(--g)">Bugun qo'shilgan</div>
+        <div class="fin-stat-val" style="color:var(--g)">${fmtNum(Math.floor(d.today_added))} so'm</div>
+      </div>`;
+  } catch { statsDiv.innerHTML = '<p style="color:var(--r);font-size:12px;">Yuklanmadi</p>'; }
+  try {
+    const d = await apiGet(AAPI + '/finance/history?limit=30');
+    const h = d.history || [];
+    tb.innerHTML = h.length
+      ? h.map(t => {
+          const amtColor = t.type === 'add' ? 'var(--g)' : 'var(--r)';
+          const amtSign  = t.type === 'add' ? '+' : '−';
+          return `
+        <tr>
+          <td>${t.user_name||t.tg_id||'—'}</td>
+          <td><b style="color:${amtColor};">${amtSign}${fmtNum(Math.floor(t.amount))} so'm</b></td>
+          <td>${statusBadge(t.type==='add'?'active':'rejected')}</td>
+          <td style="color:var(--txm);font-size:12px;">${t.note||'—'}</td>
+          <td>${fmtDate(t.created_at)}</td>
+        </tr>`;
+        }).join('')
+      : '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--txm)">Tarix yo\'q</td></tr>';
+  } catch { tb.innerHTML = '<tr><td colspan="5" style="color:var(--r);text-align:center;padding:16px;">Yuklanmadi</td></tr>'; }
+}
+
+async function addBalance() {
+  const tgId = document.getElementById('bal-tid').value.trim();
+  const amt  = parseFloat(document.getElementById('bal-amt').value);
+  const note = document.getElementById('bal-note').value||"Admin tomonidan qo'shildi";
+  if (!tgId) { showToast('Telegram ID kiriting','err'); return; }
+  if (!amt||amt<=0) { showToast('Miqdor kiriting','err'); return; }
+  try {
+    const r = await apiPost(AAPI + '/finance/add-balance', { tg_id: parseInt(tgId), amount: amt, note });
+    if (r.status === 'success') {
+      showToast(`✅ ${fmtNum(amt)} so'm qo'shildi`,'ok');
+      document.getElementById('bal-tid').value = '';
+      document.getElementById('bal-amt').value = '';
+      document.getElementById('bal-note').value = '';
+      loadFinance();
+    } else showToast(r.detail||'Xatolik','err');
+  } catch(e) { showToast('Xatolik','err'); }
+}
+
+// ===== INIT =====
+document.addEventListener('DOMContentLoaded', () => go('dashboard'));
+</script>
+</body>
+</html>

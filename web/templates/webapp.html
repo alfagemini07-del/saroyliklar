@@ -1,1 +1,176 @@
-webapp.html
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <meta name="theme-color" content="#f7f8fa">
+  <title>Saroyliklar</title>
+  <link rel="preconnect" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <link rel="stylesheet" href="/static/css/webapp.css?v=3">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-row">
+        <div class="brand-mark">S</div>
+        <div class="brand-copy">
+          <strong>Saroyliklar</strong>
+          <span id="location-label">Mahallangizdagi e'lonlar</span>
+        </div>
+        <button class="icon-button" id="locate-button" type="button" aria-label="Joylashuvim" title="Joylashuvim">
+          <i data-lucide="locate-fixed"></i>
+        </button>
+      </div>
+      <label class="search-box" id="search-wrap">
+        <i data-lucide="search"></i>
+        <input id="search-input" type="search" placeholder="E'lon yoki manzil qidiring" autocomplete="off">
+        <button class="clear-search" id="clear-search" type="button" aria-label="Qidiruvni tozalash">
+          <i data-lucide="x"></i>
+        </button>
+      </label>
+    </header>
+
+    <main class="main-content">
+      <section class="view active" id="discover-view" aria-label="E'lonlar">
+        <div class="discover-tools">
+          <div class="category-rail" id="category-rail"></div>
+          <div class="view-switch" role="tablist" aria-label="Ko'rinish">
+            <button class="active" id="show-list" type="button"><i data-lucide="layout-grid"></i><span>Ro'yxat</span></button>
+            <button id="show-map" type="button"><i data-lucide="map"></i><span>Xarita</span></button>
+          </div>
+        </div>
+
+        <div id="list-pane">
+          <div class="section-heading">
+            <div><span class="eyebrow">Yangi</span><h1>E'lonlar</h1></div>
+            <span class="result-count" id="result-count"></span>
+          </div>
+          <div class="ad-grid" id="ad-grid"></div>
+          <button class="load-more" id="load-more" type="button">Yana ko'rsatish</button>
+        </div>
+
+        <div id="map-pane" hidden>
+          <div id="map"></div>
+          <button class="map-action" id="map-locate" type="button" aria-label="Joylashuvim" title="Joylashuvim">
+            <i data-lucide="navigation"></i>
+          </button>
+          <div class="map-preview" id="map-preview" hidden></div>
+        </div>
+      </section>
+
+      <section class="view" id="places-view" aria-label="Joylar">
+        <div class="page-heading"><span class="eyebrow">Mahalliy</span><h1>Joylar</h1></div>
+        <div class="place-list" id="place-list"></div>
+      </section>
+
+      <section class="view" id="profile-view" aria-label="Profil">
+        <div class="profile-hero" id="profile-hero"></div>
+        <div class="profile-actions" id="profile-actions"></div>
+        <div class="section-heading compact"><h2>Mening e'lonlarim</h2></div>
+        <div class="my-ads" id="my-ads"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Asosiy menyu">
+      <button class="active" data-view="discover" type="button"><i data-lucide="compass"></i><span>E'lonlar</span></button>
+      <button data-view="places" type="button"><i data-lucide="store"></i><span>Joylar</span></button>
+      <button class="create-button" id="open-compose" type="button" aria-label="Qo'shish"><i data-lucide="plus"></i></button>
+      <button data-view="profile" type="button"><i data-lucide="user-round"></i><span>Profil</span></button>
+    </nav>
+  </div>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" hidden></div>
+  <aside class="detail-sheet" id="detail-sheet" aria-hidden="true">
+    <div class="sheet-handle"></div>
+    <button class="sheet-close icon-button" type="button" aria-label="Yopish"><i data-lucide="x"></i></button>
+    <div id="detail-content"></div>
+  </aside>
+
+  <div class="modal" id="compose-modal" aria-hidden="true">
+    <div class="modal-header">
+      <button class="icon-button modal-close" type="button" aria-label="Yopish"><i data-lucide="x"></i></button>
+      <strong>Yangi qo'shish</strong>
+      <span></span>
+    </div>
+    <div class="compose-tabs" role="tablist">
+      <button class="active" data-form="ad" type="button">E'lon</button>
+      <button data-form="place" type="button">Joy profili</button>
+      <button data-form="product" type="button">Mahsulot</button>
+    </div>
+
+    <form class="compose-form active" id="ad-form" enctype="multipart/form-data">
+      <label><span>Sarlavha</span><input name="title" required minlength="3" maxlength="200" placeholder="Masalan, 2 xonali uy ijaraga beriladi"></label>
+      <label><span>Tavsif</span><textarea name="description" rows="4" maxlength="4000" placeholder="Muhim ma'lumotlarni yozing"></textarea></label>
+      <div class="form-row">
+        <label><span>Kategoriya</span><select name="category" class="category-select"></select></label>
+        <label><span>Valyuta</span><select name="currency"><option>UZS</option><option>USD</option></select></label>
+      </div>
+      <div class="form-row">
+        <label><span>Narx</span><input name="price" inputmode="decimal" placeholder="Kelishiladi"></label>
+        <label><span>Telefon</span><input name="phone" inputmode="tel" placeholder="+998 ..."></label>
+      </div>
+      <label><span>Manzil</span><input name="address" maxlength="255" placeholder="Ko'cha va mo'ljal"></label>
+      <button class="location-field" data-location-form="ad" type="button"><i data-lucide="map-pin"></i><span>Joylashuvni xaritada belgilang</span><i data-lucide="chevron-right"></i></button>
+      <input name="lat" type="hidden"><input name="lng" type="hidden">
+      <label class="media-input"><input name="media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple><i data-lucide="image-plus"></i><span>Rasm yoki video</span><small>5 tagacha, har biri 20 MB gacha</small></label>
+      <div class="media-preview"></div>
+      <button class="primary-button submit-button" type="submit">E'lonni yuborish</button>
+    </form>
+
+    <form class="compose-form" id="place-form" enctype="multipart/form-data">
+      <label><span>Joy nomi</span><input name="name" required maxlength="150" placeholder="Do'kon, kafe yoki xizmat nomi"></label>
+      <div class="form-row">
+        <label><span>Kategoriya</span><select name="category" class="category-select"></select></label>
+        <label><span>Telefon</span><input name="phone" required inputmode="tel" placeholder="+998 ..."></label>
+      </div>
+      <label><span>Tavsif</span><textarea name="description" rows="3" maxlength="4000"></textarea></label>
+      <label><span>Manzil</span><input name="address" maxlength="255"></label>
+      <button class="location-field" data-location-form="place" type="button"><i data-lucide="map-pin"></i><span>Joylashuvni xaritada belgilang</span><i data-lucide="chevron-right"></i></button>
+      <input name="lat" type="hidden"><input name="lng" type="hidden">
+      <div class="form-row">
+        <label><span>Ish vaqti</span><input name="working_hours" placeholder="09:00 - 22:00"></label>
+        <label><span>Telegram</span><input name="telegram" placeholder="@username"></label>
+      </div>
+      <label><span>Instagram</span><input name="instagram" placeholder="username"></label>
+      <label class="media-input"><input name="avatar" type="file" accept="image/jpeg,image/png,image/webp"><i data-lucide="camera"></i><span>Profil rasmi</span></label>
+      <div class="media-preview"></div>
+      <button class="primary-button submit-button" type="submit">Profilni yuborish</button>
+    </form>
+
+    <form class="compose-form" id="product-form" enctype="multipart/form-data">
+      <label class="media-input"><input name="media" type="file" required accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"><i data-lucide="image-plus"></i><span>Rasm yoki video</span></label>
+      <div class="media-preview"></div>
+      <label><span>Nomi yoki izoh</span><input name="caption" maxlength="200"></label>
+      <div class="form-row">
+        <label><span>Narx</span><input name="price" inputmode="decimal"></label>
+        <label><span>Valyuta</span><select name="currency"><option>UZS</option><option>USD</option></select></label>
+      </div>
+      <button class="primary-button submit-button" type="submit">Mahsulotni qo'shish</button>
+    </form>
+  </div>
+
+  <div class="modal map-picker" id="map-picker" aria-hidden="true">
+    <div class="modal-header">
+      <button class="icon-button picker-close" type="button" aria-label="Yopish"><i data-lucide="x"></i></button>
+      <strong>Joylashuvni belgilang</strong>
+      <button class="text-button" id="confirm-location" type="button">Tayyor</button>
+    </div>
+    <div class="picker-map-wrap">
+      <div id="picker-map"></div>
+      <div class="center-pin"><i data-lucide="map-pin"></i></div>
+      <button class="map-action" id="picker-locate" type="button" aria-label="Joylashuvim"><i data-lucide="locate-fixed"></i></button>
+    </div>
+    <div class="coordinate-bar" id="coordinate-bar">Xaritani siljiting</div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/static/js/webapp-v3.js?v=3" defer></script>
+</body>
+</html>

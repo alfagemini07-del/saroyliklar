@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+
+{% block title %}Kanal Boshqaruvi{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">📢 Kanal Boshqaruvi</h1>
+
+    <!-- Kanal Sozlamalari -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">⚙️ Kanal Sozlamalari</h2>
+
+        <form id="channelSettingsForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Kanallar ID'lari (vergul bilan ajrating)
+                </label>
+                <input type="text" id="channels" name="channels"
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="-1001234567890, -1009876543210">
+                <p class="text-xs text-gray-500 mt-1">Misol: -1001234567890 (kanal ID'sini @username_to_id_bot orqali oling)</p>
+            </div>
+
+            <div class="flex items-center">
+                <input type="checkbox" id="auto_post" name="auto_post" checked
+                    class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="auto_post" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                    Tasdiqlangan e'lonlarni avtomatik kanalga yuborish
+                </label>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition">
+                    💾 Saqlash
+                </button>
+                <button type="button" onclick="loadChannels()" class="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition">
+                    🔄 Yangilash
+                </button>
+            </div>
+        </form>
+
+        <div id="channelStatus" class="mt-4 hidden">
+            <div class="p-4 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg">
+                <p class="font-medium" id="channelStatusText"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Maxsus Post Yuborish -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">📝 Maxsus Post Yuborish</h2>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">To'ylar, janozalar, muhim e'lonlar va boshqa maxsus xabarlar uchun</p>
+
+        <form id="customPostForm" class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Xabar matni (HTML qo'llab-quvvatlanadi)
+                </label>
+                <textarea id="post_text" name="text" rows="6" required
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    placeholder="🕌 To'y E'loni..."></textarea>
+                <p class="text-xs text-gray-500 mt-1">HTML: &lt;b&gt;qalin&lt;/b&gt;, &lt;i&gt;kursiv&lt;/i&gt;, &lt;code&gt;kod&lt;/code&gt;</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Rasm (ixtiyoriy)
+                </label>
+                <input type="file" id="post_photo" name="photo" accept="image/*"
+                    class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+            </div>
+
+            <div class="flex items-center">
+                <input type="checkbox" id="pin_message" name="pin_message"
+                    class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500">
+                <label for="pin_message" class="ml-2 text-sm font-medium text-gray-900 dark:text-gray-300">
+                    📌 Xabarni pin qilish (muhim e'lonlar uchun)
+                </label>
+            </div>
+
+            <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-lg font-medium transition">
+                📤 Kanallarga Yuborish
+            </button>
+        </form>
+
+        <div id="postStatus" class="mt-4 hidden">
+            <div class="p-4 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg">
+                <p class="font-medium" id="postStatusText"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pin Management -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">📌 Pin Boshqaruvi</h2>
+
+        <div class="space-y-3">
+            <button onclick="unpinAll()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-medium transition w-full sm:w-auto">
+                🗑️ Barcha Pin'larni Olib Tashlash
+            </button>
+        </div>
+
+        <div id="unpinStatus" class="mt-4 hidden">
+            <div class="p-4 bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200 rounded-lg">
+                <p class="font-medium" id="unpinStatusText"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ko'rsatma -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mt-6">
+        <h3 class="text-lg font-semibold text-blue-900 dark:text-blue-300 mb-2">ℹ️ Ko'rsatma</h3>
+        <ul class="list-disc list-inside space-y-1 text-sm text-blue-800 dark:text-blue-300">
+            <li>Botni kanalga admin qilib qo'shing va xabar yuborish huquqini bering</li>
+            <li>Kanal ID'sini olish uchun @username_to_id_bot dan foydalaning</li>
+            <li>Private kanallar uchun -100 bilan boshlanadigan ID kerak</li>
+            <li>Bir nechta kanal ID'larini vergul bilan ajratib kiriting</li>
+            <li>HTML formatlash: <code>&lt;b&gt;</code>, <code>&lt;i&gt;</code>, <code>&lt;code&gt;</code>, <code>&lt;a href="..."&gt;</code></li>
+        </ul>
+    </div>
+</div>
+
+<script>
+// Kanallarni yuklash
+async function loadChannels() {
+    try {
+        const response = await fetch('/api/admin/channel/channels');
+        const data = await response.json();
+
+        if (data.status === 'success') {
+            document.getElementById('channels').value = data.channels.join(', ');
+            document.getElementById('auto_post').checked = data.auto_post;
+        }
+    } catch (error) {
+        console.error('Kanallarni yuklashda xato:', error);
+    }
+}
+
+// Kanallarni saqlash
+document.getElementById('channelSettingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+
+    try {
+        const response = await fetch('/api/admin/channel/update-channels', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        const statusDiv = document.getElementById('channelStatus');
+        const statusText = document.getElementById('channelStatusText');
+
+        if (data.status === 'success') {
+            statusText.textContent = '✅ ' + data.message;
+            statusDiv.classList.remove('hidden');
+            setTimeout(() => statusDiv.classList.add('hidden'), 3000);
+        } else {
+            alert('Xato: ' + (data.detail || 'Noma\'lum xato'));
+        }
+    } catch (error) {
+        alert('Xato: ' + error.message);
+    }
+});
+
+// Maxsus post yuborish
+document.getElementById('customPostForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const formData = new FormData(e.target);
+
+    // Pin checkbox qiymatini qo'shish
+    if (!document.getElementById('pin_message').checked) {
+        formData.set('pin_message', 'false');
+    }
+
+    try {
+        const response = await fetch('/api/admin/channel/post-custom', {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        const statusDiv = document.getElementById('postStatus');
+        const statusText = document.getElementById('postStatusText');
+
+        if (data.status === 'success') {
+            statusText.textContent = '✅ ' + data.message;
+            statusDiv.classList.remove('hidden');
+            e.target.reset();
+            setTimeout(() => statusDiv.classList.add('hidden'), 5000);
+        } else {
+            alert('Xato: ' + (data.detail || 'Noma\'lum xato'));
+        }
+    } catch (error) {
+        alert('Xato: ' + error.message);
+    }
+});
+
+// Pin'larni olib tashlash
+async function unpinAll() {
+    if (!confirm('Barcha pin qilingan xabarlarni olib tashlashni xohlaysizmi?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/admin/channel/unpin-all', {
+            method: 'POST'
+        });
+
+        const data = await response.json();
+
+        const statusDiv = document.getElementById('unpinStatus');
+        const statusText = document.getElementById('unpinStatusText');
+
+        if (data.status === 'success') {
+            statusText.textContent = '✅ ' + data.message;
+            statusDiv.classList.remove('hidden');
+            setTimeout(() => statusDiv.classList.add('hidden'), 3000);
+        } else {
+            alert('Xato: ' + (data.detail || 'Noma\'lum xato'));
+        }
+    } catch (error) {
+        alert('Xato: ' + error.message);
+    }
+}
+
+// Sahifa yuklanganda kanallarni yuklash
+loadChannels();
+</script>
+{% endblock %}

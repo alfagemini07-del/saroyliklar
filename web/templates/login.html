@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel — Kirish</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      background: #F1F5F9;
+      padding: 20px;
+    }
+
+    .login-wrap {
+      width: 100%; max-width: 420px;
+    }
+
+    /* Logo */
+    .logo-section {
+      text-align: center; margin-bottom: 32px;
+    }
+    .logo-icon {
+      width: 60px; height: 60px;
+      background: #3B82F6;
+      border-radius: 16px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 28px; margin-bottom: 14px;
+      box-shadow: 0 8px 24px rgba(59,130,246,0.35);
+    }
+    .logo-title {
+      font-size: 22px; font-weight: 900; color: #1E293B;
+      letter-spacing: -0.3px;
+    }
+    .logo-sub {
+      font-size: 13.5px; color: #64748B; margin-top: 4px;
+    }
+
+    /* Card */
+    .card {
+      background: #fff;
+      border: 1px solid #E2E8F0;
+      border-radius: 20px;
+      padding: 36px 32px 32px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    /* Error */
+    .error-box {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: #EF4444;
+      font-size: 13.5px; font-weight: 600;
+      margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+      animation: shake 0.35s ease;
+    }
+    @keyframes shake {
+      0%,100%{transform:translateX(0)}
+      25%{transform:translateX(-6px)}
+      75%{transform:translateX(6px)}
+    }
+
+    /* Form */
+    .form-group { margin-bottom: 18px; }
+    .form-label {
+      display: block;
+      font-size: 12px; font-weight: 700;
+      color: #475569; margin-bottom: 7px;
+      text-transform: uppercase; letter-spacing: 0.4px;
+    }
+    .form-input-wrap { position: relative; }
+    .form-ico {
+      position: absolute; left: 14px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 16px; pointer-events: none;
+    }
+    .form-input {
+      width: 100%; height: 48px;
+      border-radius: 12px;
+      border: 1.5px solid #E2E8F0;
+      padding: 0 44px 0 44px;
+      font-size: 14px; color: #1E293B;
+      font-family: inherit; outline: none;
+      background: #F8FAFC;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .form-input:focus {
+      border-color: #3B82F6;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
+    }
+    .form-input::placeholder { color: #94A3B8; }
+
+    /* Toggle PW */
+    .pw-toggle {
+      position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      font-size: 16px; color: #94A3B8;
+      transition: color 0.15s;
+    }
+    .pw-toggle:hover { color: #3B82F6; }
+
+    /* Remember */
+    .remember-row {
+      display: flex; align-items: center; gap: 8px;
+      margin-bottom: 24px; font-size: 13.5px; color: #475569;
+      cursor: pointer;
+    }
+    .remember-row input[type="checkbox"] {
+      width: 16px; height: 16px; cursor: pointer;
+      accent-color: #3B82F6; border-radius: 4px;
+    }
+
+    /* Submit */
+    .submit-btn {
+      width: 100%; height: 50px; border-radius: 25px; border: none;
+      background: #3B82F6; color: #fff;
+      font-size: 15px; font-weight: 800; font-family: inherit;
+      cursor: pointer; letter-spacing: 0.2px;
+      box-shadow: 0 4px 16px rgba(59,130,246,0.4);
+      transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      position: relative; overflow: hidden;
+    }
+    .submit-btn:hover {
+      background: #2563EB;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(59,130,246,0.45);
+    }
+    .submit-btn:active { transform: scale(0.97); }
+    .submit-btn:disabled {
+      background: #93C5FD; cursor: not-allowed; transform: none;
+    }
+
+    /* Spinner inside button */
+    .btn-spinner {
+      display: none;
+      width: 20px; height: 20px;
+      border: 2.5px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Footer */
+    .card-footer {
+      text-align: center; margin-top: 20px;
+      font-size: 12px; color: #94A3B8;
+    }
+
+    /* Security badges */
+    .sec-row {
+      display: flex; justify-content: center; gap: 16px;
+      margin-top: 16px;
+    }
+    .sec-badge {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11.5px; color: #94A3B8; font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <!-- Logo -->
+  <div class="logo-section">
+    <div class="logo-icon">🏘️</div>
+    <div class="logo-title">Mahalla Bozor</div>
+    <div class="logo-sub">Admin Panel — xavfsiz kirish</div>
+  </div>
+
+  <!-- Card -->
+  <div class="card">
+    {% if error %}
+    <div class="error-box">⚠️ {{ error }}</div>
+    {% endif %}
+
+    <form action="" method="POST" id="login-form" onsubmit="handleSubmit(event)">
+      <div class="form-group">
+        <label class="form-label" for="username">Login</label>
+        <div class="form-input-wrap">
+          <span class="form-ico">👤</span>
+          <input
+            class="form-input"
+            type="text"
+            id="username"
+            name="username"
+            placeholder="Admin login"
+            required
+            autocomplete="username"
+          >
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Parol</label>
+        <div class="form-input-wrap">
+          <span class="form-ico">🔑</span>
+          <input
+            class="form-input"
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Parolni kiriting"
+            required
+            autocomplete="current-password"
+          >
+          <button type="button" class="pw-toggle" id="pw-toggle" onclick="togglePw()">👁</button>
+        </div>
+      </div>
+
+      <label class="remember-row">
+        <input type="checkbox" name="remember">
+        Eslab qolish (24 soat)
+      </label>
+
+      <button type="submit" class="submit-btn" id="submit-btn">
+        <span id="btn-text">🚀 Tizimga Kirish</span>
+        <span class="btn-spinner" id="btn-spinner"></span>
+      </button>
+    </form>
+
+    <div class="card-footer">
+      Faqat ruxsat etilgan foydalanuvchilar kirishi mumkin
+    </div>
+
+    <div class="sec-row">
+      <div class="sec-badge"><span>🔒</span> SSL Himoya</div>
+      <div class="sec-badge"><span>🛡️</span> Admin Panel</div>
+      <div class="sec-badge"><span>⚡</span> v3.0</div>
+    </div>
+  </div>
+</div>
+
+<script>
+function togglePw() {
+  const pw  = document.getElementById('password');
+  const btn = document.getElementById('pw-toggle');
+  if (pw.type === 'password') { pw.type = 'text';     btn.textContent = '🙈'; }
+  else                        { pw.type = 'password'; btn.textContent = '👁'; }
+}
+
+function handleSubmit(e) {
+  const btn  = document.getElementById('submit-btn');
+  const text = document.getElementById('btn-text');
+  const spin = document.getElementById('btn-spinner');
+  btn.disabled = true;
+  text.style.display = 'none';
+  spin.style.display = 'block';
+  // Form POST davom etadi
+}
+</script>
+</body>
+</html>

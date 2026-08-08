@@ -9,17 +9,32 @@ from config import CATEGORIES, MAX_PLACE_PHOTOS
 from database import Place, PlacePhoto, User, get_session
 from services.supabase_storage_service import StorageError, get_storage, media_public_url, storage_public_url
 from services.telegram_auth import telegram_user
+from services.ad_service import create_or_update_user
 
 
 router = APIRouter(prefix="/api/webapp", tags=["Telegram WebApp"])
-market_router = APIRouter(prefix="/api/market", tags=["Marketplace"])
+market_router = APIRouter(
+    prefix="/api/market",
+    tags=["Marketplace"],
+    dependencies=[Depends(telegram_user)],
+)
 logger = logging.getLogger(__name__)
 
 
 async def _db_user(tg_user: dict, session: AsyncSession) -> User:
     user = await session.scalar(select(User).where(User.telegram_id == int(tg_user["id"])))
     if not user:
-        raise HTTPException(status_code=403, detail="Avval botda /start buyrug'ini bosing")
+        full_name = " ".join(
+            part for part in [tg_user.get("first_name"), tg_user.get("last_name")] if part
+        ).strip()
+        user = await create_or_update_user(
+            session,
+            int(tg_user["id"]),
+            full_name or tg_user.get("username") or "Telegram foydalanuvchisi",
+            tg_user.get("username"),
+        )
+        await session.commit()
+        await session.refresh(user)
     if user.is_blocked:
         raise HTTPException(status_code=403, detail="Hisobingiz bloklangan")
     return user

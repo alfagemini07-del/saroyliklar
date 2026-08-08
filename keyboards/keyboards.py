@@ -11,22 +11,31 @@ from config import WEBAPP_URL, CATEGORIES, REGIONS, CURRENCIES, WEBHOOK_URL
 # ASOSIY MENYU
 # =====================================================
 def main_menu():
-    separator = "&" if "?" in WEBAPP_URL else "?"
-    safe_webapp_url = f"{WEBAPP_URL}{separator}v=3"
-    
     kb = ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(
-                text="🗺️ Xarita va E'lonlar",
-                web_app=WebAppInfo(url=safe_webapp_url)
-            )],
-            [KeyboardButton(text="📝 E'lon joylash")],
-            [KeyboardButton(text="🏪 Do'kon ochish"), KeyboardButton(text="👤 Profilim")],
-            [KeyboardButton(text="📋 Mening e'lonlarim"), KeyboardButton(text="👨‍💻 Aloqa")],
+            [KeyboardButton(text="🛍 Saroylik bozori")],
+            [KeyboardButton(text="🏪 Do'konim"), KeyboardButton(text="👤 Profilim")],
+            [KeyboardButton(text="👨‍💻 Aloqa")],
         ],
         resize_keyboard=True
     )
     return kb
+
+
+def webapp_launch_url():
+    separator = "&" if "?" in WEBAPP_URL else "?"
+    return f"{WEBAPP_URL}{separator}v=6"
+
+
+def webapp_inline_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(
+                text="🛍 Marketpleysni ochish",
+                web_app=WebAppInfo(url=webapp_launch_url()),
+            )]
+        ]
+    )
 
 
 # =====================================================

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from states import Register
 from database import User, BotSettings
 from services.ad_service import get_user, create_or_update_user
+from services.place_service import get_user_place
 from keyboards.keyboards import (
     main_menu, phone_keyboard, remove_keyboard, admin_contact_link_keyboard
 )
@@ -216,3 +217,38 @@ async def contact_admin_handler(message: Message, session: AsyncSession):
         parse_mode="HTML",
         reply_markup=admin_contact_link_keyboard(admin_link)
     )
+
+
+@router.message(F.text == "👤 Profilim")
+async def profile_handler(message: Message, session: AsyncSession):
+    user = await get_user(session, message.from_user.id)
+    if not user:
+        await message.answer("❌ Avval /start bosing")
+        return
+
+    place = await get_user_place(session, user.id)
+    product_count = len(place.photos) if place else 0
+    status_names = {
+        "active": "✅ Faol",
+        "pending": "⏳ Tekshiruvda",
+        "rejected": "❌ Rad etilgan",
+        "inactive": "⏸ Yopiq",
+    }
+    store_status = status_names.get(place.status, place.status) if place else "Mavjud emas"
+    bot_info = await message.bot.get_me()
+    referral_link = f"https://t.me/{bot_info.username}?start={user.referral_code}"
+
+    text = (
+        "👤 <b>Mening profilim</b>\n\n"
+        f"📛 Ism: <b>{user.full_name}</b>\n"
+        f"🔗 Username: {'@' + user.username if user.username else 'Mavjud emas'}\n"
+        f"📞 Telefon: {user.phone or 'Kiritilmagan'}\n"
+        f"📅 Ro'yxatdan: {user.created_at.strftime('%d.%m.%Y') if user.created_at else '—'}\n\n"
+        f"🏪 Do'kon: <b>{place.name if place else 'Mavjud emas'}</b>\n"
+        f"📌 Holati: <b>{store_status}</b>\n"
+        f"📦 Mahsulotlar: <b>{product_count} ta</b>\n\n"
+        "🔗 <b>Taklif havolangiz:</b>\n"
+        f"<code>{referral_link}</code>\n\n"
+        f"👥 Taklif qilganlar: <b>{user.referral_count} ta</b>"
+    )
+    await message.answer(text, parse_mode="HTML", disable_web_page_preview=True)

@@ -1,14 +1,25 @@
 import asyncio
+import os
 from collections import OrderedDict
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Query, Request, Response
 
-from config import MEDIA_CACHE_MB
 from services.telegram_storage_service import StorageError, get_storage, valid_media_signature
 
 
 router = APIRouter(tags=["Media"])
+
+
+def _media_cache_mb() -> int:
+    try:
+        value = int(os.getenv("MEDIA_CACHE_MB", "64"))
+    except (TypeError, ValueError):
+        return 64
+    return max(0, min(value, 256))
+
+
+MEDIA_CACHE_MB = _media_cache_mb()
 _cache: OrderedDict[str, bytes] = OrderedDict()
 _cache_size = 0
 _cache_lock = asyncio.Lock()

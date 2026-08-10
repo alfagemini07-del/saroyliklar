@@ -84,14 +84,9 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "")
 ADMIN_SECRET_KEY = os.getenv("ADMIN_SECRET_KEY", "")
 ADMIN_COOKIE_NAME = "saroyliklar_admin"
 
-# Supabase Storage. The secret/service-role key is used only by the backend.
-SUPABASE_URL = _env_text("SUPABASE_URL").rstrip("/")
-SUPABASE_STORAGE_KEY = (
-    os.getenv("SUPABASE_SECRET_KEY", "").strip()
-    or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "").strip()
-)
-SUPABASE_STORAGE_BUCKET = os.getenv("SUPABASE_STORAGE_BUCKET", "saroyliklar-media").strip()
-MAX_UPLOAD_MB = _env_int("MAX_UPLOAD_MB", 20)
+# Media is archived in a private Telegram channel selected from the admin panel.
+MAX_UPLOAD_MB = _env_int("MAX_UPLOAD_MB", 10)
+MEDIA_CACHE_MB = _env_int("MEDIA_CACHE_MB", 64)
 
 # Local-only WebApp testing. Never enable this on Render.
 DEV_TELEGRAM_ID = _env_int("DEV_TELEGRAM_ID", 0)
@@ -140,9 +135,6 @@ def validate_runtime_config() -> list[str]:
         "WEBHOOK_SECRET": WEBHOOK_SECRET,
         "ADMIN_PASSWORD": ADMIN_PASSWORD,
         "ADMIN_SECRET_KEY": ADMIN_SECRET_KEY,
-        "SUPABASE_URL": SUPABASE_URL,
-        "SUPABASE_STORAGE_KEY": SUPABASE_STORAGE_KEY,
-        "SUPABASE_STORAGE_BUCKET": SUPABASE_STORAGE_BUCKET,
     }
     for name, value in required.items():
         if not value:
@@ -153,10 +145,8 @@ def validate_runtime_config() -> list[str]:
         errors.append("WEBAPP_URL must be a valid HTTPS URL")
     if ENVIRONMENT == "production" and DEV_TELEGRAM_ID:
         errors.append("DEV_TELEGRAM_ID must be disabled in production")
-    if SUPABASE_URL and not SUPABASE_URL.startswith("https://"):
-        errors.append("SUPABASE_URL must use HTTPS")
-    if SUPABASE_STORAGE_KEY and not SUPABASE_STORAGE_KEY.startswith(("sb_secret_", "eyJ")):
-        errors.append("Supabase Storage requires a secret or legacy service_role key")
-    if MAX_UPLOAD_MB < 1 or MAX_UPLOAD_MB > 50:
-        errors.append("MAX_UPLOAD_MB must be between 1 and 50 for Supabase Free")
+    if MAX_UPLOAD_MB < 1 or MAX_UPLOAD_MB > 10:
+        errors.append("MAX_UPLOAD_MB must be between 1 and 10 for Telegram media storage")
+    if MEDIA_CACHE_MB < 0 or MEDIA_CACHE_MB > 256:
+        errors.append("MEDIA_CACHE_MB must be between 0 and 256")
     return errors

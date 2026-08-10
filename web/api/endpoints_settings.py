@@ -2,12 +2,14 @@ import asyncio
 import logging
 
 from aiogram.exceptions import TelegramRetryAfter
+from aiogram.enums import ChatMemberStatus, ChatType
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import BotSettings, User, get_session
+from services.telegram_storage_service import StorageError, get_storage
 
 
 logger = logging.getLogger(__name__)
@@ -15,11 +17,14 @@ router = APIRouter(prefix="/api/settings", tags=["Settings"])
 
 
 class SettingsUpdateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     mandatory_channel_ids: list[str] | None = None
     post_channel_ids: list[str] | None = None
     admin_contact_link: str | None = Field(default=None, max_length=255)
     require_approval: bool | None = None
     auto_post_to_channel: bool | None = None
+    media_channel_id: int | str | None = None
 
 
 class BroadcastRequest(BaseModel):
@@ -47,11 +52,15 @@ async def get_bot_settings(session: AsyncSession = Depends(get_session)):
         "admin_contact_link": settings.admin_contact_link or "",
         "require_approval": settings.require_approval,
         "auto_post_to_channel": settings.auto_post_to_channel,
+        "media_channel_id": str(settings.media_channel_id) if settings.media_channel_id else "",
+        "media_channel_title": settings.media_channel_title or "",
+        "media_storage_ready": bool(settings.media_channel_id),
     }
 
 
 @router.post("/")
 async def update_bot_settings(
+    request: Request,
     payload: SettingsUpdateRequest,
     session: AsyncSession = Depends(get_session),
 ):
@@ -66,8 +75,61 @@ async def update_bot_settings(
         settings.require_approval = payload.require_approval
     if payload.auto_post_to_channel is not None:
         settings.auto_post_to_channel = payload.auto_post_to_channel
+    if payload.media_channel_id is not None:
+        raw_channel = str(payload.media_channel_id).strip()
+        if not raw_channel:
+            settings.media_channel_id = None
+            settings.media_channel_title = None
+        else:
+            chat_ref: int | str
+            try:
+                chat_ref = int(raw_channel)
+            except ValueError:
+                chat_ref = raw_channel if raw_channel.startswith("@") else f"@{raw_channel}"
+            bot = getattr(request.app.state, "bot", None)
+            if not bot:
+                raise HTTPException(status_code=500, detail="Bot obyekti topilmadi")
+            try:
+                chat = await bot.get_chat(chat_ref)
+                member = await bot.get_chat_member(chat.id, bot.id)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Kanal topilmadi. Kanal ID va bot adminligini tekshiring",
+                ) from exc
+            if chat.type != ChatType.CHANNEL:
+                raise HTTPException(status_code=422, detail="Media bazasi uchun Telegram kanal tanlang")
+            if member.status not in {ChatMemberStatus.CREATOR, ChatMemberStatus.ADMINISTRATOR}:
+                raise HTTPException(status_code=422, detail="Bot tanlangan kanalda admin emas")
+            if member.status == ChatMemberStatus.ADMINISTRATOR and getattr(member, "can_post_messages", False) is not True:
+                raise HTTPException(status_code=422, detail="Botga kanalda xabar joylash huquqini bering")
+            if member.status == ChatMemberStatus.ADMINISTRATOR and getattr(member, "can_delete_messages", False) is not True:
+                raise HTTPException(status_code=422, detail="Botga kanaldagi xabarlarni o'chirish huquqini bering")
+            settings.media_channel_id = int(chat.id)
+            settings.media_channel_title = (chat.title or str(chat.id))[:255]
     await session.commit()
-    return {"status": "success", "message": "Sozlamalar saqlandi"}
+    await session.refresh(settings)
+    logger.info(
+        "Bot settings saved: media_channel_id=%s media_channel_title=%s",
+        settings.media_channel_id,
+        settings.media_channel_title,
+    )
+    return {
+        "status": "success",
+        "message": "Sozlamalar saqlandi",
+        "media_channel_id": str(settings.media_channel_id) if settings.media_channel_id else "",
+        "media_channel_title": settings.media_channel_title or "",
+        "media_storage_ready": bool(settings.media_channel_id),
+    }
+
+
+@router.get("/media-status")
+async def media_storage_status():
+    try:
+        channel_id = await get_storage().resolve_channel_id()
+    except StorageError as exc:
+        return {"ready": False, "channel_id": "", "detail": str(exc)}
+    return {"ready": True, "channel_id": str(channel_id), "detail": "Media kanali ishlashga tayyor"}
 
 
 async def _broadcast(bot, user_ids: list[int], message_text: str) -> None:

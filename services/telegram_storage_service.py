@@ -3,11 +3,13 @@ import hmac
 import io
 import logging
 import mimetypes
+import os
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from aiogram import Bot
+from aiogram.enums import ChatMemberStatus, ChatType
 from aiogram.types import BufferedInputFile
 from sqlalchemy import select
 
@@ -106,12 +108,50 @@ class TelegramChannelStorage:
             raise StorageError("Telegram media storage ishga tushmagan")
         return self.bot
 
-    async def _channel_id(self) -> int:
+    async def resolve_channel_id(self) -> int:
         async with AsyncSessionLocal() as session:
             settings = await session.scalar(select(BotSettings).where(BotSettings.id == 1))
-            if not settings or not settings.media_channel_id:
+            candidates = []
+            if settings and settings.media_channel_id:
+                candidates.append(settings.media_channel_id)
+            env_channel = os.getenv("MEDIA_CHANNEL_ID", "").strip()
+            if env_channel:
+                candidates.append(env_channel)
+            if settings:
+                candidates.extend(settings.post_channel_ids or [])
+            if not candidates:
                 raise StorageError("Admin panelda media saqlash kanali belgilanmagan")
-            return int(settings.media_channel_id)
+
+            seen: set[str] = set()
+            for candidate in candidates:
+                raw_channel = str(candidate).strip()
+                if not raw_channel or raw_channel in seen:
+                    continue
+                seen.add(raw_channel)
+                try:
+                    chat_ref: int | str = int(raw_channel)
+                except ValueError:
+                    chat_ref = raw_channel if raw_channel.startswith("@") else f"@{raw_channel}"
+                try:
+                    chat = await self._bot().get_chat(chat_ref)
+                    member = await self._bot().get_chat_member(chat.id, self._bot().id)
+                except Exception as exc:
+                    logger.warning("Media channel candidate is unavailable %s: %s", raw_channel, exc)
+                    continue
+                if chat.type != ChatType.CHANNEL:
+                    continue
+                if member.status not in {ChatMemberStatus.CREATOR, ChatMemberStatus.ADMINISTRATOR}:
+                    continue
+                if member.status == ChatMemberStatus.ADMINISTRATOR and getattr(member, "can_post_messages", False) is not True:
+                    continue
+
+                if settings and settings.media_channel_id != int(chat.id):
+                    settings.media_channel_id = int(chat.id)
+                    settings.media_channel_title = (chat.title or str(chat.id))[:255]
+                    await session.commit()
+                return int(chat.id)
+
+            raise StorageError("Media kanali topilmadi yoki botda kanalga xabar joylash huquqi yo'q")
 
     async def upload(
         self,
@@ -130,7 +170,7 @@ class TelegramChannelStorage:
         if not _content_matches_type(content, mime_type):
             raise StorageError("Fayl tarkibi tanlangan media turiga mos emas")
 
-        channel_id = await self._channel_id()
+        channel_id = await self.resolve_channel_id()
         safe_name = _safe_filename(filename, mime_type)
         media_type = "video" if mime_type.startswith("video/") else "image"
         caption = f"Saroyliklar media | {prefix[:40]} | {safe_name}"[:1024]

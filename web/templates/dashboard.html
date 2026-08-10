@@ -234,6 +234,35 @@ tbody tr:hover td { background:var(--sf2); }
 .fin-stat { padding:14px; border-radius:10px; margin-bottom:10px; }
 .fin-stat-lbl { font-size:11px; font-weight:700; margin-bottom:4px; }
 .fin-stat-val { font-size:20px; font-weight:900; }
+
+/* ===== CHANNEL MANAGEMENT ===== */
+.channel-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; max-width:1040px; }
+.channel-grid .card-body { overflow:visible; }
+.form-textarea { width:100%; min-height:112px; resize:vertical; border-radius:8px; border:1.5px solid var(--bd); padding:10px 11px; font-size:13px; font-family:inherit; color:var(--tx); background:var(--sf); outline:none; line-height:1.5; }
+.form-textarea:focus { border-color:var(--p); }
+.channel-actions { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.channel-status { display:flex; align-items:flex-start; gap:10px; padding:12px; border:1px solid var(--bd); border-radius:8px; background:var(--sf2); margin-bottom:14px; }
+.channel-status-dot { width:9px; height:9px; border-radius:50%; background:var(--w); margin-top:4px; flex-shrink:0; }
+.channel-status.ready .channel-status-dot { background:var(--g); }
+.channel-status.error .channel-status-dot { background:var(--r); }
+.channel-status-title { font-size:12.5px; font-weight:800; color:var(--tx); }
+.channel-status-detail { font-size:11.5px; color:var(--txm); margin-top:3px; line-height:1.45; overflow-wrap:anywhere; }
+.switch-row { display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:700; color:var(--txs); margin-bottom:14px; }
+.switch-row input { width:17px; height:17px; accent-color:var(--p); }
+.file-note { display:block; margin-top:6px; color:var(--txm); font-size:11.5px; }
+button:disabled { opacity:.58; cursor:not-allowed; }
+
+@media (max-width:900px) {
+  .channel-grid, .two-col { grid-template-columns:1fr; }
+  .stats-row { grid-template-columns:repeat(2,1fr); }
+}
+@media (max-width:640px) {
+  :root { --sw:180px; }
+  .page-scroll { padding:12px; }
+  .topbar { padding:0 12px; }
+  .stats-row { grid-template-columns:1fr; }
+  .channel-actions > button { flex:1; }
+}
 </style>
 </head>
 <body>
@@ -254,7 +283,7 @@ tbody tr:hover td { background:var(--sf2); }
     <a class="sb-item" id="nav-finance"   href="#" onclick="go('finance');return false;"><span class="sb-ico">💳</span> Balans</a>
     <div class="sb-section" style="margin-top:6px;">Tizim</div>
     <a class="sb-item" id="nav-settings"  href="#" onclick="go('settings');return false;"><span class="sb-ico">⚙️</span> Sozlamalar</a>
-    <a class="sb-item" id="nav-channels"  href="/admin/channels"><span class="sb-ico">📢</span> Kanal Boshqaruvi</a>
+    <a class="sb-item" id="nav-channels"  href="?section=channels" onclick="go('channels');return false;"><span class="sb-ico">📢</span> Kanal Boshqaruvi</a>
   </nav>
   <div class="sb-foot">
     <div class="sb-user">
@@ -393,6 +422,53 @@ tbody tr:hover td { background:var(--sf2); }
       </div>
     </div>
 
+    <!-- ========== CHANNELS ========== -->
+    <div id="pg-channels" style="display:none;" class="page-scroll">
+      <div class="channel-grid">
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Post kanallari</div></div>
+          <div class="card-body">
+            <div id="channel-status" class="channel-status">
+              <span class="channel-status-dot"></span>
+              <div><div class="channel-status-title">Tekshirilmoqda</div><div class="channel-status-detail">Kanal sozlamalari yuklanmoqda.</div></div>
+            </div>
+            <div class="form-row">
+              <label class="form-lbl" for="channel-ids">Kanal ID yoki username</label>
+              <textarea id="channel-ids" class="form-textarea" placeholder="-1001234567890&#10;@ochiq_kanal"></textarea>
+              <small class="file-note">Har bir kanalni yangi qatordan yoki vergul bilan kiriting. Bot kanal administratori bo'lishi kerak.</small>
+            </div>
+            <label class="switch-row"><input id="channel-auto-post" type="checkbox"> Tasdiqlangan materiallarni avtomatik yuborish</label>
+            <div class="channel-actions">
+              <button class="btn-primary" id="channel-save" onclick="saveChannels()">Saqlash va tekshirish</button>
+              <button class="btn-cancel" id="channel-test" onclick="testFirstChannel()">Test yuborish</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-hd"><div class="card-ttl">Maxsus kanal posti</div></div>
+          <div class="card-body">
+            <form id="channel-post-form" onsubmit="sendChannelPost(event)">
+              <div class="form-row">
+                <label class="form-lbl" for="channel-post-text">Xabar matni</label>
+                <textarea id="channel-post-text" class="form-textarea" maxlength="4096" required placeholder="Kanalga yuboriladigan xabar"></textarea>
+              </div>
+              <div class="form-row">
+                <label class="form-lbl" for="channel-post-photo">Rasm, ixtiyoriy</label>
+                <input id="channel-post-photo" class="form-inp" style="height:auto;padding:8px 10px;" type="file" accept="image/jpeg,image/png,image/webp,image/gif">
+                <small class="file-note" id="channel-photo-note">JPG, PNG, WEBP yoki GIF. Eng katta hajm: 10 MB.</small>
+              </div>
+              <label class="switch-row"><input id="channel-post-pin" type="checkbox"> Xabarni kanalda mahkamlash</label>
+              <div class="channel-actions">
+                <button class="btn-primary" id="channel-post-send" type="submit">Yuborish</button>
+                <button class="btn-danger" id="channel-unpin" type="button" onclick="unpinAllChannels()">Barcha pinlarni olish</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ========== SETTINGS ========== -->
     <div id="pg-settings" style="display:none;" class="page-scroll">
       <div class="card" style="max-width:560px;">
@@ -498,6 +574,7 @@ let plPage    = 1; let plTotal  = 0; let plData  = [];
 let curUserId = null; let curUserBlocked = false;
 let curPlaceId = null;
 let dashChart = null;
+let dashPromise = null;
 
 const CATS = {
   housing:'🏠', food:'🍽️', grocery:'🛒', teahouse:'🫖', cafe:'☕',
@@ -506,7 +583,8 @@ const CATS = {
 };
 
 // ===== NAVIGATION =====
-function go(page) {
+function go(page, updateUrl=true) {
+  if (!document.getElementById('pg-' + page)) page = 'dashboard';
   curPage = page;
   document.querySelectorAll('[id^="pg-"]').forEach(p => p.style.display = 'none');
   const pg = document.getElementById('pg-' + page);
@@ -517,14 +595,22 @@ function go(page) {
   const ni = document.getElementById('nav-' + page);
   if (ni) ni.classList.add('active');
 
-  const titles = { dashboard:'📊 Dashboard', users:'👥 Foydalanuvchilar', ads:"📢 E'lonlar", places:"🏪 Do'konlar", finance:'💳 Balans', settings:'⚙️ Sozlamalar' };
+  const titles = { dashboard:'📊 Dashboard', users:'👥 Foydalanuvchilar', ads:"📢 E'lonlar", places:"🏪 Do'konlar", finance:'💳 Balans', channels:'📢 Kanal boshqaruvi', settings:'⚙️ Sozlamalar' };
   document.getElementById('tb-title').textContent = titles[page] || page;
+
+  if (updateUrl) {
+    const url = new URL(window.location.href);
+    if (page === 'dashboard') url.searchParams.delete('section');
+    else url.searchParams.set('section', page);
+    history.replaceState(null, '', url);
+  }
 
   if (page === 'dashboard') loadDashboard();
   else if (page === 'users')    loadUsers(1);
   else if (page === 'ads')      loadAds(1);
   else if (page === 'places')   loadPlaces(1);
   else if (page === 'finance')  loadFinance();
+  else if (page === 'channels') loadChannels();
   else if (page === 'settings') loadSettings();
 }
 function refresh() { go(curPage); }
@@ -549,9 +635,17 @@ function safeApiData(value) {
   if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([key,item]) => [key,safeApiData(item)]));
   return value;
 }
-async function apiGet(url) { const r = await fetch(url); if(!r.ok) throw new Error(`HTTP ${r.status}`); return safeApiData(await r.json()); }
-async function apiPost(url, body) { const r = await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return r.json(); }
-async function apiDel(url) { const r = await fetch(url,{method:'DELETE'}); return r.json(); }
+async function apiRequest(url, options={}) {
+  const response = await fetch(url, {cache:'no-store', ...options});
+  let data = {};
+  try { data = await response.json(); } catch { data = {}; }
+  if (!response.ok) throw new Error(data.detail || data.message || `HTTP ${response.status}`);
+  return safeApiData(data);
+}
+async function apiGet(url) { return apiRequest(url); }
+async function apiPost(url, body) { return apiRequest(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+async function apiForm(url, body) { return apiRequest(url,{method:'POST',body}); }
+async function apiDel(url) { return apiRequest(url,{method:'DELETE'}); }
 
 async function loadSettings() {
   try {
@@ -592,6 +686,113 @@ async function saveSettings() {
   }
 }
 
+function channelValues() {
+  return document.getElementById('channel-ids').value
+    .split(/[\n,]+/)
+    .map(value => value.trim())
+    .filter(Boolean);
+}
+
+function setChannelStatus(type, title, detail) {
+  const box = document.getElementById('channel-status');
+  box.className = 'channel-status' + (type ? ` ${type}` : '');
+  box.querySelector('.channel-status-title').textContent = title;
+  box.querySelector('.channel-status-detail').textContent = detail;
+}
+
+async function loadChannels() {
+  setChannelStatus('', 'Tekshirilmoqda', 'Kanal sozlamalari yuklanmoqda.');
+  try {
+    const config = await apiGet(AAPI + '/channel/channels');
+    document.getElementById('channel-ids').value = (config.channels || []).join('\n');
+    document.getElementById('channel-auto-post').checked = Boolean(config.auto_post);
+    const channelCount = (config.channels || []).length;
+    if (config.media_ready) {
+      const mediaName = config.media_channel_title || config.media_channel_id;
+      setChannelStatus('ready', 'Kanallar ishlashga tayyor', `${channelCount} ta post kanali. Media: ${mediaName}`);
+    } else {
+      setChannelStatus('error', 'Media kanali belgilanmagan', 'Post kanallarini saqlang yoki Sozlamalarda media kanalini kiriting.');
+    }
+  } catch (error) {
+    setChannelStatus('error', 'Sozlamalar yuklanmadi', error.message);
+    showToast(error.message, 'err');
+  }
+}
+
+async function saveChannels() {
+  const button = document.getElementById('channel-save');
+  button.disabled = true;
+  try {
+    const result = await apiPost(AAPI + '/channel/configure', {
+      channels: channelValues(),
+      auto_post: document.getElementById('channel-auto-post').checked,
+    });
+    document.getElementById('channel-ids').value = (result.channels || []).map(item => item.id).join('\n');
+    setChannelStatus('ready', 'Sozlamalar saqlandi', result.message);
+    showToast(result.message, 'ok');
+  } catch (error) {
+    setChannelStatus('error', 'Kanal ulanmagan', error.message);
+    showToast(error.message, 'err');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function testFirstChannel() {
+  const values = channelValues();
+  if (!values.length) { showToast('Avval kanal ID kiriting', 'err'); return; }
+  const button = document.getElementById('channel-test');
+  button.disabled = true;
+  try {
+    const result = await apiPost(AAPI + `/channel/test-channel/${encodeURIComponent(values[0])}`, {});
+    setChannelStatus('ready', 'Test muvaffaqiyatli', result.message);
+    showToast(result.message, 'ok');
+  } catch (error) {
+    setChannelStatus('error', 'Test bajarilmadi', error.message);
+    showToast(error.message, 'err');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function sendChannelPost(event) {
+  event.preventDefault();
+  const button = document.getElementById('channel-post-send');
+  const photo = document.getElementById('channel-post-photo').files[0];
+  if (photo && photo.size > 10 * 1024 * 1024) {
+    showToast('Rasm hajmi 10 MB dan oshmasligi kerak', 'err');
+    return;
+  }
+  const form = new FormData();
+  form.append('text', document.getElementById('channel-post-text').value.trim());
+  form.append('pin_message', document.getElementById('channel-post-pin').checked ? 'true' : 'false');
+  if (photo) form.append('photo', photo);
+  button.disabled = true;
+  try {
+    const result = await apiForm(AAPI + '/channel/post-custom', form);
+    document.getElementById('channel-post-form').reset();
+    showToast(result.message, 'ok');
+  } catch (error) {
+    showToast(error.message, 'err');
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function unpinAllChannels() {
+  if (!window.confirm("Barcha sozlangan kanallardagi pinlarni olib tashlaysizmi?")) return;
+  const button = document.getElementById('channel-unpin');
+  button.disabled = true;
+  try {
+    const result = await apiPost(AAPI + '/channel/unpin-all', {});
+    showToast(result.message, 'ok');
+  } catch (error) {
+    showToast(error.message, 'err');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function renderPag(containerId, total, perPage, cur, loadFn) {
   const tp = Math.ceil(total / perPage);
   const c = document.getElementById(containerId);
@@ -608,13 +809,27 @@ function renderPag(containerId, total, perPage, cur, loadFn) {
 
 // ===== DASHBOARD =====
 async function loadDashboard() {
-  await Promise.all([loadDashStats(), loadChart(7), loadDashUsers(), loadDashPlaces(), loadDashActivity()]);
+  if (dashPromise) return dashPromise;
+  dashPromise = apiGet(AAPI + '/dashboard?days=7')
+    .then(data => Promise.all([
+      loadDashStats(data.summary),
+      loadChart(7, data.chart),
+      loadDashUsers(data.users),
+      loadDashPlaces(data.places),
+      loadDashActivity(),
+    ]))
+    .catch(error => {
+      showToast('Dashboard yuklanmadi: ' + error.message, 'err');
+      document.getElementById('dash-stats').innerHTML = '<p style="color:var(--r);padding:12px;">Dashboard ma\'lumotlari yuklanmadi</p>';
+    })
+    .finally(() => { dashPromise = null; });
+  return dashPromise;
 }
 
-async function loadDashStats() {
+async function loadDashStats(data=null) {
   const g = document.getElementById('dash-stats');
   try {
-    const d = await apiGet(AAPI + '/stats/summary');
+    const d = data || await apiGet(AAPI + '/stats/summary');
     g.innerHTML = `
     <div class="stat-card"><div class="stat-ico" style="background:#EFF6FF;">👥</div><div><div class="stat-lbl">Foydalanuvchilar</div><div class="stat-val">${fmtNum(d.total_users)}</div><div class="stat-sub">Bugun: +${d.today_users||0}</div></div></div>
     <div class="stat-card"><div class="stat-ico" style="background:#F0FDF4;">📦</div><div><div class="stat-lbl">Mahsulotlar</div><div class="stat-val">${fmtNum(d.total_products)}</div><div class="stat-sub">Jami katalogda</div></div></div>
@@ -623,10 +838,10 @@ async function loadDashStats() {
   } catch(e) { g.innerHTML = `<p style="color:var(--r);padding:12px;">Xatolik: ${e.message}</p>`; }
 }
 
-async function loadChart(days) {
+async function loadChart(days, data=null) {
   const el = document.getElementById('dash-chart');
   try {
-    const d = await apiGet(AAPI + '/stats/chart?days=' + days);
+    const d = data || await apiGet(AAPI + '/stats/chart?days=' + days);
     if (dashChart) { dashChart.destroy(); dashChart = null; }
     el.innerHTML = '';
     dashChart = new ApexCharts(el, {
@@ -645,10 +860,10 @@ async function loadChart(days) {
   } catch(e) { el.innerHTML = '<div style="text-align:center;color:var(--txm);padding:40px;font-size:13px;">Grafik yuklanmadi</div>'; }
 }
 
-async function loadDashUsers() {
+async function loadDashUsers(data=null) {
   const tb = document.getElementById('dash-users');
   try {
-    const d = await apiGet(AAPI + '/users?limit=5');
+    const d = data || await apiGet(AAPI + '/users?limit=5');
     const users = d.users || [];
     tb.innerHTML = users.length
       ? users.map(u => `<tr><td><span class="tbl-name">${u.full_name||'—'}</span></td><td style="color:var(--txm)">@${u.username||'—'}</td><td>${fmtDate(u.created_at)}</td><td>${statusBadge(u.is_blocked?'blocked':'active')}</td></tr>`).join('')
@@ -656,10 +871,10 @@ async function loadDashUsers() {
   } catch { tb.innerHTML = '<tr><td colspan="4" style="color:var(--r);padding:12px;text-align:center">Yuklanmadi</td></tr>'; }
 }
 
-async function loadDashPlaces() {
+async function loadDashPlaces(data=null) {
   const tb = document.getElementById('dash-places');
   try {
-    const d = await apiGet(AAPI + '/places?limit=5');
+    const d = data || await apiGet(AAPI + '/places?limit=5');
     const places = d.places || [];
     tb.innerHTML = places.length
       ? places.map(p => `<tr><td><span class="tbl-name" style="max-width:130px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.name||'—'}</span></td><td>${statusBadge(p.status||'active')}</td></tr>`).join('')
@@ -1050,7 +1265,10 @@ async function addBalance() {
 }
 
 // ===== INIT =====
-document.addEventListener('DOMContentLoaded', () => go('dashboard'));
+document.addEventListener('DOMContentLoaded', () => {
+  const requested = new URLSearchParams(window.location.search).get('section') || 'dashboard';
+  go(requested, false);
+});
 </script>
 </body>
 </html>

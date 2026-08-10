@@ -253,11 +253,32 @@ class BotSettings(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     mandatory_channel_ids = Column(JSON, default=list, nullable=False)
     post_channel_ids = Column(JSON, default=list, nullable=False)
+    media_channel_id = Column(BigInteger)
+    media_channel_title = Column(String(255))
     admin_telegram_id = Column(BigInteger)
     admin_contact_link = Column(String(255))
     require_approval = Column(Boolean, default=True, nullable=False)
     auto_post_to_channel = Column(Boolean, default=True, nullable=False)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow, nullable=False)
+
+
+class MediaObject(Base):
+    """A file archived as a message in the private Telegram media channel."""
+
+    __tablename__ = "media_objects"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    channel_id = Column(BigInteger, nullable=False, index=True)
+    message_id = Column(BigInteger, nullable=False)
+    telegram_file_id = Column(Text, nullable=False)
+    telegram_file_unique_id = Column(String(255))
+    filename = Column(String(255), nullable=False)
+    mime_type = Column(String(100), nullable=False)
+    media_type = Column(String(20), nullable=False)
+    size_bytes = Column(BigInteger, nullable=False)
+    created_at = Column(DateTime, default=utcnow, nullable=False)
+
+    __table_args__ = (Index("ix_media_channel_message", "channel_id", "message_id", unique=True),)
 
 
 async def get_session():
@@ -289,6 +310,8 @@ async def _upgrade_existing_schema() -> None:
         "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS description TEXT",
         "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS is_available BOOLEAN NOT NULL DEFAULT TRUE",
         "ALTER TABLE place_photos ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE bot_settings ADD COLUMN IF NOT EXISTS media_channel_id BIGINT",
+        "ALTER TABLE bot_settings ADD COLUMN IF NOT EXISTS media_channel_title VARCHAR(255)",
     ]
     async with engine.begin() as conn:
         for statement in statements:

@@ -30,15 +30,11 @@ services:
         generateValue: true
       - key: WEBHOOK_SECRET
         sync: false
-      - key: PUBLIC_BASE_URL
-        sync: false
       - key: DATABASE_URL
         sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SECRET_KEY
-        sync: false
-      - key: SUPABASE_STORAGE_BUCKET
-        value: saroyliklar-media
+      - key: MAX_UPLOAD_MB
+        value: "10"
+      - key: MEDIA_CACHE_MB
+        value: "64"
       - key: GEMINI_API_KEY
         sync: false

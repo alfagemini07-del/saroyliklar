@@ -399,6 +399,12 @@ tbody tr:hover td { background:var(--sf2); }
         <div class="card-hd"><div class="card-ttl">⚙️ Tizim Sozlamalari</div></div>
         <div class="card-body">
           <div class="form-row"><label class="form-lbl" for="settings-admin-link">Administrator aloqa havolasi</label><input id="settings-admin-link" type="url" class="form-inp" placeholder="https://t.me/username"></div>
+          <div class="form-row">
+            <label class="form-lbl" for="settings-media-channel">Media saqlash kanali ID</label>
+            <input id="settings-media-channel" type="text" inputmode="numeric" class="form-inp" placeholder="-1001234567890">
+            <small style="display:block;margin-top:6px;color:#667085;line-height:1.45;">Botni private kanalga admin qiling va xabar joylash huquqini bering. Barcha mahsulot rasmlari va videolari shu kanalga arxivlanadi.</small>
+            <div id="settings-media-status" style="margin-top:7px;font-size:12px;font-weight:700;color:#07865f;"></div>
+          </div>
           <div class="form-row"><label class="form-lbl"><input id="settings-approval" type="checkbox"> Yangi e'lonlar administrator tasdig'idan o'tsin</label></div>
           <div class="form-row"><label class="form-lbl"><input id="settings-auto-post" type="checkbox"> Tasdiqlangan e'lonlar kanallarga avtomatik yuborilsin</label></div>
           <button class="btn-primary" id="settings-save" onclick="saveSettings()">💾 Saqlash</button>
@@ -553,6 +559,8 @@ async function loadSettings() {
     document.getElementById('settings-admin-link').value = data.admin_contact_link || '';
     document.getElementById('settings-approval').checked = Boolean(data.require_approval);
     document.getElementById('settings-auto-post').checked = Boolean(data.auto_post_to_channel);
+    document.getElementById('settings-media-channel').value = data.media_channel_id || '';
+    document.getElementById('settings-media-status').textContent = data.media_channel_title ? `Ulangan: ${data.media_channel_title}` : 'Media kanali hali belgilanmagan';
   } catch (error) {
     showToast('Sozlamalarni yuklab bo\'lmadi: ' + error.message, 'err');
   }
@@ -566,8 +574,11 @@ async function saveSettings() {
       admin_contact_link: document.getElementById('settings-admin-link').value.trim(),
       require_approval: document.getElementById('settings-approval').checked,
       auto_post_to_channel: document.getElementById('settings-auto-post').checked,
+      media_channel_id: document.getElementById('settings-media-channel').value.trim(),
     });
     if (result.status !== 'success') throw new Error(result.detail || 'Saqlashda xatolik');
+    document.getElementById('settings-media-channel').value = result.media_channel_id || '';
+    document.getElementById('settings-media-status').textContent = result.media_channel_title ? `Ulangan: ${result.media_channel_title}` : 'Media kanali hali belgilanmagan';
     showToast(result.message, 'ok');
   } catch (error) {
     showToast(error.message, 'err');

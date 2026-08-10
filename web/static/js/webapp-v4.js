@@ -57,7 +57,14 @@
     mapPicker: qs("#map-picker"),
     coordinateBar: qs("#coordinate-bar"),
     toast: qs("#toast"),
+    mediaViewer: qs("#media-viewer"),
+    mediaViewerTitle: qs("#media-viewer-title"),
+    mediaViewerStage: qs("#media-viewer-stage"),
+    mediaViewerContent: qs("#media-viewer-content"),
+    mediaViewerTools: qs("#media-viewer-tools"),
   };
+
+  const viewer = { scale: 1, x: 0, y: 0, dragging: false, startX: 0, startY: 0 };
 
   function escapeHtml(value = "") {
     return String(value)
@@ -125,7 +132,42 @@
     if (item.media_type === "video") {
       return `<div class="${className}"><video src="${url}" ${controls ? "controls" : "preload=\"metadata\""} playsinline></video>${controls ? "" : '<span class="video-badge"><i data-lucide="play"></i></span>'}</div>`;
     }
-    return `<div class="${className}"><img src="${url}" alt="${title}" loading="lazy"></div>`;
+    const expand = controls ? ` data-expand-media="${url}" data-media-title="${title}" role="button" tabindex="0"` : "";
+    const hint = controls ? '<span class="media-zoom-hint"><i data-lucide="zoom-in"></i></span>' : "";
+    return `<div class="${className}"${expand}><img src="${url}" alt="${title}" loading="lazy">${hint}</div>`;
+  }
+
+  function applyViewerTransform() {
+    const image = qs("img", elements.mediaViewerContent);
+    if (!image) return;
+    image.style.transform = `translate3d(${viewer.x}px, ${viewer.y}px, 0) scale(${viewer.scale})`;
+  }
+
+  function setViewerZoom(nextScale) {
+    viewer.scale = Math.max(1, Math.min(4, nextScale));
+    if (viewer.scale === 1) viewer.x = viewer.y = 0;
+    applyViewerTransform();
+  }
+
+  function openMediaViewer(url, title, mediaType = "image") {
+    viewer.scale = 1; viewer.x = 0; viewer.y = 0;
+    elements.mediaViewerTitle.textContent = title || "Mahsulot rasmi";
+    elements.mediaViewer.classList.toggle("video-mode", mediaType === "video");
+    elements.mediaViewerContent.innerHTML = mediaType === "video"
+      ? `<video src="${escapeHtml(url)}" controls autoplay playsinline></video>`
+      : `<img src="${escapeHtml(url)}" alt="${escapeHtml(title || "Mahsulot rasmi")}">`;
+    elements.mediaViewer.hidden = false;
+    elements.mediaViewer.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeMediaViewer() {
+    const video = qs("video", elements.mediaViewerContent);
+    video?.pause();
+    elements.mediaViewer.hidden = true;
+    elements.mediaViewer.setAttribute("aria-hidden", "true");
+    elements.mediaViewerContent.innerHTML = "";
+    document.body.style.overflow = "";
   }
 
   function priceText(product) {
@@ -453,6 +495,15 @@
     }).join("");
   }
 
+  function filesWithinLimit(form) {
+    const oversized = qsa('input[type="file"]', form)
+      .flatMap((input) => [...input.files])
+      .find((file) => file.size > 10 * 1024 * 1024);
+    if (!oversized) return true;
+    toast(`${oversized.name} 10 MB limitdan katta`, true);
+    return false;
+  }
+
   function openCompose(type, item = null) {
     elements.storeForm.hidden = type !== "store";
     elements.productForm.hidden = type !== "product";
@@ -557,6 +608,7 @@
       toast("Do'konni xaritada belgilang", true);
       return;
     }
+    if (!filesWithinLimit(form)) return;
     button.disabled = true;
     try {
       const editing = form.elements.mode.value === "edit";
@@ -578,6 +630,7 @@
     const button = qs(".submit-button", form);
     const productId = form.elements.product_id.value;
     const formData = new FormData(form);
+    if (!filesWithinLimit(form)) return;
     if (productId) {
       if (!form.elements.media.files.length) formData.delete("media");
       formData.delete("is_available");
@@ -635,6 +688,28 @@
     qs(".picker-close").addEventListener("click", closeLocationPicker);
     qsa(".modal-close").forEach((button) => button.addEventListener("click", closeCompose));
     qs(".sheet-close").addEventListener("click", closeSheet);
+    qs("#media-viewer-close").addEventListener("click", closeMediaViewer);
+    elements.mediaViewerTools.addEventListener("click", (event) => {
+      const action = event.target.closest("[data-viewer-zoom]")?.dataset.viewerZoom;
+      if (action === "in") setViewerZoom(viewer.scale + 0.5);
+      if (action === "out") setViewerZoom(viewer.scale - 0.5);
+      if (action === "reset") setViewerZoom(1);
+    });
+    elements.mediaViewerStage.addEventListener("dblclick", () => setViewerZoom(viewer.scale > 1 ? 1 : 2));
+    elements.mediaViewerStage.addEventListener("pointerdown", (event) => {
+      if (viewer.scale <= 1 || !qs("img", elements.mediaViewerContent)) return;
+      viewer.dragging = true; viewer.startX = event.clientX - viewer.x; viewer.startY = event.clientY - viewer.y;
+      event.currentTarget.setPointerCapture(event.pointerId);
+      qs("img", elements.mediaViewerContent)?.classList.add("dragging");
+    });
+    elements.mediaViewerStage.addEventListener("pointermove", (event) => {
+      if (!viewer.dragging) return;
+      viewer.x = event.clientX - viewer.startX; viewer.y = event.clientY - viewer.startY;
+      applyViewerTransform();
+    });
+    const stopViewerDrag = () => { viewer.dragging = false; qs("img", elements.mediaViewerContent)?.classList.remove("dragging"); };
+    elements.mediaViewerStage.addEventListener("pointerup", stopViewerDrag);
+    elements.mediaViewerStage.addEventListener("pointercancel", stopViewerDrag);
     elements.sheetBackdrop.addEventListener("click", closeSheet);
     elements.loadMore.addEventListener("click", () => loadProducts({ append: true }));
     elements.storeForm.addEventListener("submit", submitStore);
@@ -669,6 +744,8 @@
     });
 
     document.addEventListener("click", (event) => {
+      const expandedMedia = event.target.closest("[data-expand-media]");
+      if (expandedMedia) { openMediaViewer(expandedMedia.dataset.expandMedia, expandedMedia.dataset.mediaTitle, "image"); return; }
       const product = event.target.closest("[data-product-id]");
       if (product) { openProduct(product.dataset.productId); return; }
       const store = event.target.closest("[data-store-id]");
@@ -682,6 +759,14 @@
       if (removeProduct) deleteProduct(removeProduct.dataset.deleteProduct);
       const showMap = event.target.closest("[data-show-store-map]");
       if (showMap) showStoreOnMap(showMap.dataset.showStoreMap);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !elements.mediaViewer.hidden) closeMediaViewer();
+      const expandedMedia = event.target.closest?.("[data-expand-media]");
+      if (expandedMedia && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault();
+        openMediaViewer(expandedMedia.dataset.expandMedia, expandedMedia.dataset.mediaTitle, "image");
+      }
     });
   }
 

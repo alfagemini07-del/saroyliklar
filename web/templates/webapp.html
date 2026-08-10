@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
-  <link rel="stylesheet" href="/static/css/webapp.css?v=6">
+  <link rel="stylesheet" href="/static/css/webapp.css?v=8">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
@@ -61,6 +61,7 @@
       <section class="view map-view" id="map-view" aria-label="Xarita">
         <div id="market-map"></div>
         <div class="map-filter" id="map-filter"></div>
+        <div class="map-status" id="map-status">Do'konlar yuklanmoqda</div>
         <button class="map-action" id="map-locate" type="button" aria-label="Joylashuvim"><i data-lucide="navigation"></i></button>
         <div class="map-preview" id="map-preview" hidden></div>
       </section>
@@ -121,7 +122,7 @@
 
     <form class="compose-form" id="product-form" enctype="multipart/form-data" hidden>
       <input name="product_id" type="hidden">
-      <label class="media-input" id="product-media-field"><input name="media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"><i data-lucide="image-plus"></i><span>Mahsulot rasmi yoki videosi</span><small>20 MB gacha</small></label>
+      <label class="media-input" id="product-media-field"><input name="media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"><i data-lucide="image-plus"></i><span>Mahsulot rasmi yoki videosi</span><small>10 MB gacha</small></label>
       <div class="media-preview"></div>
       <label><span>Mahsulot nomi</span><input name="title" required minlength="2" maxlength="160" placeholder="Masalan, Uy yog'i 1 litr"></label>
       <label><span>Tavsif</span><textarea name="description" rows="3" maxlength="2000" placeholder="Mahsulot haqida qisqa ma'lumot"></textarea></label>
@@ -148,7 +149,22 @@
     <div class="coordinate-bar" id="coordinate-bar">Xaritani siljiting</div>
   </div>
 
+  <div class="media-viewer" id="media-viewer" hidden aria-hidden="true">
+    <div class="media-viewer-header">
+      <strong id="media-viewer-title">Mahsulot rasmi</strong>
+      <button class="viewer-icon-button" id="media-viewer-close" type="button" aria-label="Yopish"><i data-lucide="x"></i></button>
+    </div>
+    <div class="media-viewer-stage" id="media-viewer-stage">
+      <div id="media-viewer-content"></div>
+    </div>
+    <div class="media-viewer-tools" id="media-viewer-tools">
+      <button type="button" data-viewer-zoom="out" aria-label="Kichraytirish"><i data-lucide="zoom-out"></i></button>
+      <button type="button" data-viewer-zoom="reset" aria-label="Asl o'lcham"><i data-lucide="scan"></i></button>
+      <button type="button" data-viewer-zoom="in" aria-label="Kattalashtirish"><i data-lucide="zoom-in"></i></button>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status"></div>
-  <script src="/static/js/webapp-v4.js?v=6" defer></script>
+  <script src="/static/js/webapp-v4.js?v=8" defer></script>
 </body>
 </html>

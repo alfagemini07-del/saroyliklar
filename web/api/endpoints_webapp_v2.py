@@ -5,9 +5,9 @@ from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from config import CATEGORIES, MAX_PLACE_PHOTOS
+from config import CATEGORIES, MAX_PLACE_PHOTOS, MAX_UPLOAD_MB
 from database import Place, PlacePhoto, User, get_session
-from services.supabase_storage_service import StorageError, get_storage, media_public_url, storage_public_url
+from services.telegram_storage_service import StorageError, get_storage, media_public_url, storage_public_url
 from services.telegram_auth import telegram_user
 from services.ad_service import create_or_update_user
 
@@ -73,7 +73,7 @@ async def _upload_files(files: list[UploadFile], prefix: str, max_count: int) ->
     stored = []
     try:
         for file in valid:
-            content = await file.read()
+            content = await file.read(MAX_UPLOAD_MB * 1024 * 1024 + 1)
             stored.append(
                 await get_storage().upload(
                     content,
@@ -89,7 +89,7 @@ async def _upload_files(files: list[UploadFile], prefix: str, max_count: int) ->
     except Exception as exc:
         for item in stored:
             await get_storage().delete(item.file_id)
-        logger.exception("Supabase Storage upload failed")
+        logger.exception("Telegram media storage upload failed")
         raise HTTPException(status_code=502, detail="Faylni saqlashda xatolik yuz berdi") from exc
     return stored
 
@@ -129,8 +129,8 @@ def _own_store(store: Place) -> dict:
         "telegram": store.telegram,
         "instagram": store.instagram,
         "website": store.website,
-        "avatar": store.avatar_url or storage_public_url(store.avatar_file_id),
-        "cover": store.cover_url or storage_public_url(store.cover_file_id),
+        "avatar": storage_public_url(store.avatar_file_id) or store.avatar_url,
+        "cover": storage_public_url(store.cover_file_id) or store.cover_url,
         "status": store.status,
         "is_verified": store.is_verified,
     }
@@ -314,6 +314,8 @@ async def add_product(
     )
     if not store:
         raise HTTPException(status_code=404, detail="Avval do'kon oching")
+    if store.status != "active":
+        raise HTTPException(status_code=403, detail="Mahsulot qo'shish uchun do'kon administrator tomonidan tasdiqlanishi kerak")
     if len(store.photos) >= MAX_PLACE_PHOTOS:
         raise HTTPException(status_code=422, detail=f"Ko'pi bilan {MAX_PLACE_PHOTOS} ta mahsulot qo'shiladi")
     clean_title = title.strip()
@@ -327,6 +329,7 @@ async def add_product(
         mime_type=uploaded.mime_type,
         media_type=uploaded.media_type,
         size_bytes=uploaded.size_bytes,
+        telegram_file_id=uploaded.telegram_file_id,
         title=clean_title[:160],
         caption=clean_title[:200],
         description=description.strip()[:2000] or None,
@@ -384,6 +387,7 @@ async def update_product(
         product.mime_type = uploaded.mime_type
         product.media_type = uploaded.media_type
         product.size_bytes = uploaded.size_bytes
+        product.telegram_file_id = uploaded.telegram_file_id
     try:
         await session.commit()
     except Exception:
@@ -434,8 +438,8 @@ def _market_store(store: Place) -> dict:
         "category_name": category["name"],
         "category_icon": category["icon"],
         "category_color": category["color"],
-        "avatar": store.avatar_url or storage_public_url(store.avatar_file_id),
-        "cover": store.cover_url or storage_public_url(store.cover_file_id),
+        "avatar": storage_public_url(store.avatar_file_id) or store.avatar_url,
+        "cover": storage_public_url(store.cover_file_id) or store.cover_url,
         "phone": store.phone,
         "address": store.address,
         "lat": store.lat,
@@ -468,7 +472,7 @@ def _market_product(product: PlacePhoto, store: Place | None = None) -> dict:
         "store": {
             "id": store.id,
             "name": store.name,
-            "avatar": store.avatar_url or storage_public_url(store.avatar_file_id),
+            "avatar": storage_public_url(store.avatar_file_id) or store.avatar_url,
             "address": store.address,
             "phone": store.phone,
             "telegram": store.telegram,
@@ -560,11 +564,14 @@ async def market_map(
     conditions = [Place.status == "active", Place.lat.is_not(None), Place.lng.is_not(None)]
     if category != "all":
         conditions.append(Place.category == category)
-    _market_bounds(conditions, north, south, east, west)
+    # The marketplace currently has a small catalogue. Returning every active
+    # store keeps markers discoverable even when a saved coordinate is just
+    # outside the initial viewport; Leaflet clustering handles the display.
     result = await session.execute(
         select(Place).where(and_(*conditions)).order_by(Place.is_verified.desc(), desc(Place.created_at)).limit(500)
     )
-    return {"stores": [_market_store(store) for store in result.scalars()]}
+    stores = [_market_store(store) for store in result.scalars()]
+    return {"stores": stores, "total": len(stores)}
 
 
 @market_router.get("/products/{product_id}")

@@ -5,7 +5,6 @@
   const DEFAULT_CENTER = [40.167796262859696, 67.80262130723996];
   const DEFAULT_ZOOM = 16;
   const SATELLITE_TILES = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
-  const LABEL_TILES = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
   const qs = (selector, root = document) => root.querySelector(selector);
   const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
   const params = new URLSearchParams(window.location.search);
@@ -27,6 +26,7 @@
     mapCluster: null,
     mapRequest: null,
     mapTimer: null,
+    mapHasFitted: false,
     pickerMap: null,
     pickerTarget: null,
   };
@@ -46,6 +46,7 @@
     storeList: qs("#store-list"),
     mapFilter: qs("#map-filter"),
     mapPreview: qs("#map-preview"),
+    mapStatus: qs("#map-status"),
     profileContent: qs("#profile-content"),
     detailSheet: qs("#detail-sheet"),
     detailContent: qs("#detail-content"),
@@ -101,17 +102,29 @@
       headers.set("X-Telegram-Init-Data", tg.initData);
       headers.set("Authorization", `tma ${tg.initData}`);
     }
-    const response = await fetch(apiUrl(path), { ...options, headers });
-    const contentType = response.headers.get("content-type") || "";
-    const data = contentType.includes("application/json") ? await response.json() : null;
-    if (!response.ok) {
-      const detail = data?.detail;
-      const message = Array.isArray(detail)
-        ? detail.map((item) => item.msg).join("; ")
-        : detail || "So'rov bajarilmadi";
-      throw new Error(message);
+    const fetchOptions = { ...options };
+    const timeoutMs = Number(fetchOptions.timeoutMs) || 15000;
+    delete fetchOptions.timeoutMs;
+    const timeoutController = fetchOptions.signal ? null : new AbortController();
+    const timeoutId = timeoutController ? setTimeout(() => timeoutController.abort(), timeoutMs) : null;
+    try {
+      const response = await fetch(apiUrl(path), { ...fetchOptions, headers, signal: fetchOptions.signal || timeoutController.signal });
+      const contentType = response.headers.get("content-type") || "";
+      const data = contentType.includes("application/json") ? await response.json() : null;
+      if (!response.ok) {
+        const detail = data?.detail;
+        const message = Array.isArray(detail)
+          ? detail.map((item) => item.msg).join("; ")
+          : detail || "So'rov bajarilmadi";
+        throw new Error(message);
+      }
+      return data;
+    } catch (error) {
+      if (timeoutController?.signal.aborted) throw new Error("Server javobi kechikdi. Qayta urinib ko'ring");
+      throw error;
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
     }
-    return data;
   }
 
   function initials(name) {
@@ -292,8 +305,13 @@
     if (view === "map") {
       initMap();
       setTimeout(() => {
-        state.map.invalidateSize();
-        loadMapStores();
+        if (state.map) {
+          state.map.invalidateSize();
+          loadMapStores();
+        } else {
+          elements.mapStatus.textContent = "Xarita yuklanmadi. Internetni tekshiring";
+          elements.mapStatus.classList.add("empty");
+        }
       }, 80);
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -301,13 +319,18 @@
 
   function initMap() {
     if (state.map || !window.L) return;
-    state.map = L.map("market-map", { zoomControl: true }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+    state.map = L.map("market-map", { zoomControl: true, minZoom: 5, maxZoom: 20 }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
     L.tileLayer(SATELLITE_TILES, {
-      maxZoom: 19,
+      minZoom: 5,
+      maxZoom: 20,
+      maxNativeZoom: 18,
+      keepBuffer: 3,
+      updateWhenZooming: false,
       attribution: "Imagery &copy; Esri",
     }).addTo(state.map);
-    L.tileLayer(LABEL_TILES, { maxZoom: 19, pane: "overlayPane" }).addTo(state.map);
-    state.mapCluster = L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 44 });
+    state.mapCluster = typeof L.markerClusterGroup === "function"
+      ? L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 44 })
+      : L.layerGroup();
     state.map.addLayer(state.mapCluster);
     state.map.on("moveend", () => {
       clearTimeout(state.mapTimer);
@@ -340,11 +363,22 @@
     try {
       const data = await request(`/api/market/map?${query}`, { signal: state.mapRequest.signal });
       state.mapCluster.clearLayers();
-      data.stores.forEach((store) => {
-        const marker = L.marker([store.lat, store.lng], { icon: markerIcon(store), title: store.name });
+      const validStores = data.stores.filter((store) => Number.isFinite(Number(store.lat)) && Number.isFinite(Number(store.lng)));
+      const markerBounds = [];
+      validStores.forEach((store) => {
+        const coordinates = [Number(store.lat), Number(store.lng)];
+        markerBounds.push(coordinates);
+        const marker = L.marker(coordinates, { icon: markerIcon(store), title: store.name, riseOnHover: true });
         marker.on("click", () => showMapPreview(store));
         state.mapCluster.addLayer(marker);
       });
+      elements.mapStatus.textContent = validStores.length ? `${validStores.length} ta do'kon` : "Faol do'kon topilmadi";
+      elements.mapStatus.classList.toggle("empty", !validStores.length);
+      if (!state.mapHasFitted && markerBounds.length) {
+        state.mapHasFitted = true;
+        const visibleNow = markerBounds.some((coordinates) => bounds.contains(coordinates));
+        if (!visibleNow) state.map.fitBounds(markerBounds, { padding: [36, 36], maxZoom: 16, animate: false });
+      }
     } catch (error) {
       if (error.name !== "AbortError") toast(error.message, true);
     }
@@ -553,7 +587,7 @@
   }
 
   async function ensureCompose() {
-    if (!state.profile) await loadProfile();
+    await loadProfile();
     if (!state.profile) {
       toast("Web ilovani Telegram bot ichidan oching", true);
       return;
@@ -569,9 +603,15 @@
     const lng = Number(form.elements.lng.value) || DEFAULT_CENTER[1];
     setTimeout(() => {
       if (!state.pickerMap) {
-        state.pickerMap = L.map("picker-map", { zoomControl: true }).setView([lat, lng], form.elements.lat.value ? 16 : DEFAULT_ZOOM);
-        L.tileLayer(SATELLITE_TILES, { maxZoom: 19, attribution: "Imagery &copy; Esri" }).addTo(state.pickerMap);
-        L.tileLayer(LABEL_TILES, { maxZoom: 19, pane: "overlayPane" }).addTo(state.pickerMap);
+        state.pickerMap = L.map("picker-map", { zoomControl: true, minZoom: 5, maxZoom: 20 }).setView([lat, lng], form.elements.lat.value ? 16 : DEFAULT_ZOOM);
+        L.tileLayer(SATELLITE_TILES, {
+          minZoom: 5,
+          maxZoom: 20,
+          maxNativeZoom: 18,
+          keepBuffer: 3,
+          updateWhenZooming: false,
+          attribution: "Imagery &copy; Esri",
+        }).addTo(state.pickerMap);
         state.pickerMap.on("move", updatePickerCoordinates);
       } else {
         state.pickerMap.setView([lat, lng], form.elements.lat.value ? 16 : 7);
@@ -612,7 +652,11 @@
     button.disabled = true;
     try {
       const editing = form.elements.mode.value === "edit";
-      const data = await request("/api/webapp/store", { method: editing ? "PUT" : "POST", body: new FormData(form) });
+      const data = await request("/api/webapp/store", {
+        method: editing ? "PUT" : "POST",
+        body: new FormData(form),
+        timeoutMs: 90000,
+      });
       toast(data.message);
       closeCompose();
       await loadProfile();
@@ -640,10 +684,13 @@
       return;
     }
     button.disabled = true;
+    const buttonLabel = button.textContent;
+    button.textContent = "Saqlanmoqda...";
     try {
       const data = await request(productId ? `/api/webapp/products/${encodeURIComponent(productId)}` : "/api/webapp/products", {
         method: productId ? "PUT" : "POST",
         body: formData,
+        timeoutMs: 90000,
       });
       toast(data.message);
       closeCompose();
@@ -652,6 +699,7 @@
       toast(error.message, true);
     } finally {
       button.disabled = false;
+      button.textContent = buttonLabel;
     }
   }
 
@@ -782,19 +830,13 @@
       elements.accessGateText.textContent = "Marketpleysni Telegram botdagi menu yoki inline tugma orqali oching.";
       return;
     }
-    try {
-      state.profile = await request("/api/webapp/me");
-      elements.accessGate.hidden = true;
-      elements.appShell.hidden = false;
-      bindEvents();
-      elements.clearSearch.style.visibility = "hidden";
-      await loadCategories();
-      await loadProducts();
-    } catch (error) {
-      elements.accessGate.classList.add("denied");
-      elements.accessGateTitle.textContent = "Telegram sessiyasi tasdiqlanmadi";
-      elements.accessGateText.textContent = error.message;
-    }
+    elements.accessGate.hidden = true;
+    elements.appShell.hidden = false;
+    bindEvents();
+    elements.clearSearch.style.visibility = "hidden";
+    const startup = await Promise.allSettled([loadProfile(), loadCategories(), loadProducts()]);
+    const categoriesError = startup[1].status === "rejected" ? startup[1].reason : null;
+    if (categoriesError) toast(categoriesError.message || "Kategoriyalar yuklanmadi", true);
   }
 
   init();

@@ -99,6 +99,8 @@ html [hidden] { display: none !important; }
 #market-map { width: 100%; height: 100%; background: #e8edef; }
 .map-filter { position: absolute; z-index: 550; top: 10px; left: 50%; transform: translateX(-50%); }
 .map-filter select { height: 40px; max-width: 210px; padding: 0 34px 0 12px; border: 1px solid var(--line); border-radius: 8px; outline: 0; background: var(--surface); color: var(--ink); font-weight: 800; box-shadow: 0 4px 15px rgba(23,32,38,.13); }
+.map-status { position: absolute; z-index: 540; top: 60px; left: 50%; max-width: calc(100% - 32px); transform: translateX(-50%); padding: 7px 10px; border-radius: 7px; background: rgba(17,27,32,.82); color: #fff; font-size: 10px; font-weight: 800; white-space: nowrap; pointer-events: none; }
+.map-status.empty { background: rgba(171,42,42,.9); }
 .map-action { width: 42px; height: 42px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); box-shadow: 0 4px 15px rgba(23,32,38,.13); }
 #map-locate { position: absolute; z-index: 550; right: 12px; bottom: 14px; }
 .map-preview { position: absolute; z-index: 560; right: 62px; bottom: 10px; left: 10px; min-height: 78px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); box-shadow: 0 8px 24px rgba(23,32,38,.18); }

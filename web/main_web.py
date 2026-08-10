@@ -137,7 +137,8 @@ def init_web(bot: Bot, dp: Dispatcher) -> FastAPI:
 
     @app.get("/admin/channels")
     async def admin_channels(request: Request):
-        return templates.TemplateResponse(request=request, name="channel_management.html")
+        del request
+        return RedirectResponse("/admin?section=channels", status_code=status.HTTP_303_SEE_OTHER)
 
     @app.get("/admin/login")
     async def admin_login(request: Request):

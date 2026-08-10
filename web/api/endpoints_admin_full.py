@@ -10,7 +10,7 @@ from sqlalchemy.orm import selectinload
 from config import AD_EXPIRE_DAYS, CATEGORIES
 from database import Ad, Place, PlacePhoto, Transaction, User, get_session
 from services.channel_post_service import post_ad_to_channels
-from services.supabase_storage_service import get_storage, media_public_url
+from services.telegram_storage_service import get_storage, media_public_url, storage_public_url
 
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
@@ -37,13 +37,25 @@ async def _user_by_tg(session: AsyncSession, telegram_id: int) -> User:
 @router.get("/stats/summary")
 async def stats_summary(session: AsyncSession = Depends(get_session)):
     today = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    stats = (
+        await session.execute(
+            select(
+                select(func.count(User.id)).scalar_subquery().label("total_users"),
+                select(func.count(User.id)).where(User.created_at >= today).scalar_subquery().label("today_users"),
+                select(func.count(PlacePhoto.id)).scalar_subquery().label("total_products"),
+                select(func.count(User.id)).where(User.is_blocked.is_(True)).scalar_subquery().label("blocked_bot"),
+                select(func.count(Place.id)).scalar_subquery().label("total_places"),
+                select(func.count(Place.id)).where(Place.status == "pending").scalar_subquery().label("pending_places"),
+            )
+        )
+    ).one()
     return {
-        "total_users": await session.scalar(select(func.count(User.id))) or 0,
-        "today_users": await session.scalar(select(func.count(User.id)).where(User.created_at >= today)) or 0,
-        "total_products": await session.scalar(select(func.count(PlacePhoto.id))) or 0,
-        "blocked_bot": await session.scalar(select(func.count(User.id)).where(User.is_blocked.is_(True))) or 0,
-        "total_places": await session.scalar(select(func.count(Place.id))) or 0,
-        "pending_places": await session.scalar(select(func.count(Place.id)).where(Place.status == "pending")) or 0,
+        "total_users": stats.total_users or 0,
+        "today_users": stats.today_users or 0,
+        "total_products": stats.total_products or 0,
+        "blocked_bot": stats.blocked_bot or 0,
+        "total_places": stats.total_places or 0,
+        "pending_places": stats.pending_places or 0,
     }
 
 
@@ -72,15 +84,35 @@ async def users_list(
     limit: int = Query(20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ):
-    users = (
-        await session.execute(select(User).order_by(desc(User.created_at)).offset(skip).limit(limit))
-    ).scalars().all()
+    product_count = (
+        select(func.count(PlacePhoto.id))
+        .join(Place, Place.id == PlacePhoto.place_id)
+        .where(Place.user_id == User.id)
+        .correlate(User)
+        .scalar_subquery()
+    )
+    store_name = (
+        select(Place.name)
+        .where(Place.user_id == User.id)
+        .order_by(desc(Place.created_at))
+        .limit(1)
+        .correlate(User)
+        .scalar_subquery()
+    )
+    rows = (
+        await session.execute(
+            select(
+                User,
+                product_count.label("product_count"),
+                store_name.label("store_name"),
+            )
+            .order_by(desc(User.created_at))
+            .offset(skip)
+            .limit(limit)
+        )
+    ).all()
     result = []
-    for user in users:
-        product_count = await session.scalar(
-            select(func.count(PlacePhoto.id)).join(Place, Place.id == PlacePhoto.place_id).where(Place.user_id == user.id)
-        ) or 0
-        store_name = await session.scalar(select(Place.name).where(Place.user_id == user.id).limit(1))
+    for user, user_product_count, user_store_name in rows:
         result.append(
             {
                 "id": user.id,
@@ -89,8 +121,8 @@ async def users_list(
                 "username": user.username,
                 "phone": user.phone,
                 "balance": float(user.balance or 0),
-                "product_count": product_count,
-                "store_name": store_name,
+                "product_count": user_product_count or 0,
+                "store_name": user_store_name,
                 "is_blocked": user.is_blocked,
                 "created_at": _date(user.created_at),
             }
@@ -250,12 +282,22 @@ async def places_list(
     limit: int = Query(20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
 ):
-    query = select(Place).options(selectinload(Place.user), selectinload(Place.photos)).order_by(desc(Place.created_at))
+    photo_count = (
+        select(func.count(PlacePhoto.id))
+        .where(PlacePhoto.place_id == Place.id)
+        .correlate(Place)
+        .scalar_subquery()
+    )
+    query = (
+        select(Place, User, photo_count.label("photos_count"))
+        .outerjoin(User, User.id == Place.user_id)
+        .order_by(desc(Place.created_at))
+    )
     count_query = select(func.count(Place.id))
     if status and status != "all":
         query = query.where(Place.status == status)
         count_query = count_query.where(Place.status == status)
-    places = (await session.execute(query.offset(skip).limit(limit))).scalars().all()
+    rows = (await session.execute(query.offset(skip).limit(limit))).all()
     return {
         "places": [
             {
@@ -268,17 +310,31 @@ async def places_list(
                 "address": place.address,
                 "status": place.status,
                 "is_verified": place.is_verified,
-                "avatar": place.avatar_url,
+                "avatar": storage_public_url(place.avatar_file_id) or place.avatar_url,
                 "created_at": _date(place.created_at),
-                "owner_name": place.user.full_name if place.user else None,
-                "owner_phone": place.user.phone if place.user else None,
-                "owner_telegram_id": place.user.telegram_id if place.user else None,
-                "photos_count": len(place.photos),
+                "owner_name": owner.full_name if owner else None,
+                "owner_phone": owner.phone if owner else None,
+                "owner_telegram_id": owner.telegram_id if owner else None,
+                "photos_count": photos_count or 0,
                 "description": place.description,
             }
-            for place in places
+            for place, owner, photos_count in rows
         ],
         "total": await session.scalar(count_query) or 0,
+    }
+
+
+@router.get("/dashboard")
+async def dashboard_snapshot(
+    days: int = Query(7, ge=1, le=90),
+    session: AsyncSession = Depends(get_session),
+):
+    """Return the initial dashboard in one HTTP request and one DB session."""
+    return {
+        "summary": await stats_summary(session),
+        "chart": await stats_chart(days=days, session=session),
+        "users": await users_list(skip=0, limit=5, session=session),
+        "places": await places_list(status=None, skip=0, limit=5, session=session),
     }
 
 
@@ -289,6 +345,29 @@ async def _place(place_id: str, session: AsyncSession) -> Place:
     if not place:
         raise HTTPException(status_code=404, detail="Joy topilmadi")
     return place
+
+
+@router.get("/places/{place_id}")
+async def place_detail(place_id: str, session: AsyncSession = Depends(get_session)):
+    place = await _place(place_id, session)
+    return {
+        "id": place.id,
+        "name": place.name,
+        "category": place.category,
+        "cat_icon": CATEGORIES.get(place.category, CATEGORIES["other"])["icon"],
+        "cat_name": CATEGORIES.get(place.category, CATEGORIES["other"])["name"],
+        "phone": place.phone,
+        "address": place.address,
+        "description": place.description,
+        "status": place.status,
+        "is_verified": place.is_verified,
+        "avatar": storage_public_url(place.avatar_file_id) or place.avatar_url,
+        "created_at": _date(place.created_at),
+        "owner_name": place.user.full_name if place.user else None,
+        "owner_phone": place.user.phone if place.user else None,
+        "owner_telegram_id": place.user.telegram_id if place.user else None,
+        "photos_count": len(place.photos),
+    }
 
 
 @router.post("/places/{place_id}/approve")

@@ -24,7 +24,7 @@ def main_menu():
 
 def webapp_launch_url():
     separator = "&" if "?" in WEBAPP_URL else "?"
-    return f"{WEBAPP_URL}{separator}v=6"
+    return f"{WEBAPP_URL}{separator}v=9"
 
 
 def webapp_inline_keyboard():

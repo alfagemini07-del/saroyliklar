@@ -5,6 +5,9 @@
   const DEFAULT_CENTER = [40.167796262859696, 67.80262130723996];
   const DEFAULT_ZOOM = 16;
   const SATELLITE_TILES = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+  const TRANSPORT_TILES = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}";
+  const LABEL_TILES = "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}";
+  const STREET_TILES = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
   const qs = (selector, root = document) => root.querySelector(selector);
   const qsa = (selector, root = document) => [...root.querySelectorAll(selector)];
   const params = new URLSearchParams(window.location.search);
@@ -26,7 +29,8 @@
     mapCluster: null,
     mapRequest: null,
     mapTimer: null,
-    mapHasFitted: false,
+    mapLayers: null,
+    userLocationLayer: null,
     pickerMap: null,
     pickerTarget: null,
   };
@@ -232,7 +236,7 @@
     elements.categoryRail.innerHTML = chips.join("");
 
     const options = state.categories
-      .map((category) => `<option value="${escapeHtml(category.id)}">${escapeHtml(category.name)}</option>`)
+      .map((category) => `<option value="${escapeHtml(category.id)}">${escapeHtml(category.icon)} ${escapeHtml(category.name)}</option>`)
       .join("");
     qsa(".category-select").forEach((select) => { select.innerHTML = options; });
     elements.mapFilter.innerHTML = `<select aria-label="Do'kon turi"><option value="all">Barcha do'konlar</option>${options}</select>`;
@@ -320,14 +324,54 @@
   function initMap() {
     if (state.map || !window.L) return;
     state.map = L.map("market-map", { zoomControl: true, minZoom: 5, maxZoom: 20 }).setView(DEFAULT_CENTER, DEFAULT_ZOOM);
-    L.tileLayer(SATELLITE_TILES, {
+    const satellite = L.tileLayer(SATELLITE_TILES, {
       minZoom: 5,
       maxZoom: 20,
       maxNativeZoom: 18,
       keepBuffer: 3,
       updateWhenZooming: false,
       attribution: "Imagery &copy; Esri",
-    }).addTo(state.map);
+    });
+    const streets = L.tileLayer(STREET_TILES, {
+      minZoom: 5,
+      maxZoom: 20,
+      maxNativeZoom: 19,
+      keepBuffer: 3,
+      updateWhenZooming: false,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    });
+    const transport = L.tileLayer(TRANSPORT_TILES, {
+      minZoom: 5,
+      maxZoom: 20,
+      maxNativeZoom: 18,
+      pane: "overlayPane",
+      attribution: "Roads &copy; Esri, HERE, Garmin, OpenStreetMap contributors",
+    });
+    const labels = L.tileLayer(LABEL_TILES, {
+      minZoom: 5,
+      maxZoom: 20,
+      maxNativeZoom: 18,
+      pane: "overlayPane",
+      attribution: "Labels &copy; Esri",
+    });
+    satellite.addTo(state.map);
+    transport.addTo(state.map);
+    labels.addTo(state.map);
+    state.mapLayers = { satellite, streets, transport, labels };
+    L.control.layers(
+      { "Sun'iy yo'ldosh": satellite, "Ko'chalar": streets },
+      { "Yo'llar": transport, "Joy nomlari": labels },
+      { position: "topright", collapsed: true },
+    ).addTo(state.map);
+    state.map.on("baselayerchange", ({ layer }) => {
+      if (layer === streets) {
+        state.map.removeLayer(transport);
+        state.map.removeLayer(labels);
+      } else {
+        if (!state.map.hasLayer(transport)) transport.addTo(state.map);
+        if (!state.map.hasLayer(labels)) labels.addTo(state.map);
+      }
+    });
     state.mapCluster = typeof L.markerClusterGroup === "function"
       ? L.markerClusterGroup({ showCoverageOnHover: false, maxClusterRadius: 44 })
       : L.layerGroup();
@@ -340,11 +384,13 @@
 
   function markerIcon(store) {
     const color = store.category_color || "#07865f";
+    const icon = store.category_icon || "📦";
     return L.divIcon({
       className: "custom-map-icon",
-      html: `<div class="store-marker" style="--marker-color:${escapeHtml(color)}"><span>${escapeHtml(initials(store.name))}</span></div>`,
+      html: `<div class="store-marker" style="--marker-color:${escapeHtml(color)}"><span aria-hidden="true">${escapeHtml(icon)}</span></div>`,
       iconSize: [42, 48],
       iconAnchor: [21, 45],
+      tooltipAnchor: [0, -42],
     });
   }
 
@@ -363,22 +409,21 @@
     try {
       const data = await request(`/api/market/map?${query}`, { signal: state.mapRequest.signal });
       state.mapCluster.clearLayers();
+      elements.mapPreview.hidden = true;
       const validStores = data.stores.filter((store) => Number.isFinite(Number(store.lat)) && Number.isFinite(Number(store.lng)));
-      const markerBounds = [];
       validStores.forEach((store) => {
         const coordinates = [Number(store.lat), Number(store.lng)];
-        markerBounds.push(coordinates);
         const marker = L.marker(coordinates, { icon: markerIcon(store), title: store.name, riseOnHover: true });
+        marker.bindTooltip(`<strong>${escapeHtml(store.name)}</strong><br>${escapeHtml(store.category_name || "Do'kon")}`, {
+          className: "store-map-tooltip",
+          direction: "top",
+          opacity: 0.96,
+        });
         marker.on("click", () => showMapPreview(store));
         state.mapCluster.addLayer(marker);
       });
       elements.mapStatus.textContent = validStores.length ? `${validStores.length} ta do'kon` : "Faol do'kon topilmadi";
       elements.mapStatus.classList.toggle("empty", !validStores.length);
-      if (!state.mapHasFitted && markerBounds.length) {
-        state.mapHasFitted = true;
-        const visibleNow = markerBounds.some((coordinates) => bounds.contains(coordinates));
-        if (!visibleNow) state.map.fitBounds(markerBounds, { padding: [36, 36], maxZoom: 16, animate: false });
-      }
     } catch (error) {
       if (error.name !== "AbortError") toast(error.message, true);
     }
@@ -386,11 +431,14 @@
 
   function showMapPreview(store) {
     elements.mapPreview.hidden = false;
-    elements.mapPreview.innerHTML = `<button class="map-preview-inner" type="button" data-store-id="${escapeHtml(store.id)}">
-      ${avatarHtml(store.avatar, store.name)}
-      <span><h3>${escapeHtml(store.name)}</h3><p>${escapeHtml(store.address || store.category_name || "Do'kon")}</p></span>
-      <span class="row-chevron"><i data-lucide="chevron-right"></i></span>
-    </button>`;
+    const destination = `${Number(store.lat)},${Number(store.lng)}`;
+    elements.mapPreview.innerHTML = `<div class="map-preview-inner">
+      <button class="map-preview-store" type="button" data-store-id="${escapeHtml(store.id)}">
+        ${avatarHtml(store.avatar, store.name)}
+        <span><h3>${escapeHtml(store.name)}</h3><p>${escapeHtml(store.category_icon || "📦")} ${escapeHtml(store.address || store.category_name || "Do'kon")}</p></span>
+      </button>
+      <a class="map-route-button" href="https://www.google.com/maps/dir/?api=1&amp;destination=${escapeHtml(destination)}" target="_blank" rel="noopener" aria-label="Yo'nalish" title="Yo'nalish"><i data-lucide="route"></i></a>
+    </div>`;
     refreshIcons(elements.mapPreview);
   }
 
@@ -400,7 +448,29 @@
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => map.setView([coords.latitude, coords.longitude], 16, { animate: true }),
+      ({ coords }) => {
+        const point = [coords.latitude, coords.longitude];
+        map.setView(point, 17, { animate: true });
+        if (map === state.map) {
+          state.userLocationLayer?.remove();
+          const accuracy = L.circle(point, {
+            radius: Math.min(coords.accuracy || 20, 200),
+            color: "#1684d6",
+            weight: 1,
+            fillColor: "#1684d6",
+            fillOpacity: 0.1,
+            interactive: false,
+          });
+          const dot = L.circleMarker(point, {
+            radius: 7,
+            color: "#ffffff",
+            weight: 3,
+            fillColor: "#1684d6",
+            fillOpacity: 1,
+          }).bindTooltip("Sizning joylashuvingiz", { direction: "top" });
+          state.userLocationLayer = L.layerGroup([accuracy, dot]).addTo(map);
+        }
+      },
       () => toast("Joylashuvga ruxsat berilmadi", true),
       { enableHighAccuracy: true, timeout: 10000 },
     );
@@ -612,9 +682,23 @@
           updateWhenZooming: false,
           attribution: "Imagery &copy; Esri",
         }).addTo(state.pickerMap);
+        L.tileLayer(TRANSPORT_TILES, {
+          minZoom: 5,
+          maxZoom: 20,
+          maxNativeZoom: 18,
+          pane: "overlayPane",
+          attribution: "Roads &copy; Esri, HERE, Garmin, OpenStreetMap contributors",
+        }).addTo(state.pickerMap);
+        L.tileLayer(LABEL_TILES, {
+          minZoom: 5,
+          maxZoom: 20,
+          maxNativeZoom: 18,
+          pane: "overlayPane",
+          attribution: "Labels &copy; Esri",
+        }).addTo(state.pickerMap);
         state.pickerMap.on("move", updatePickerCoordinates);
       } else {
-        state.pickerMap.setView([lat, lng], form.elements.lat.value ? 16 : 7);
+        state.pickerMap.setView([lat, lng], 16);
         state.pickerMap.invalidateSize();
       }
       updatePickerCoordinates();

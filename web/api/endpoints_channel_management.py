@@ -57,13 +57,17 @@ async def update_channels(
 
         settings.post_channel_ids = channel_list
         settings.auto_post_to_channel = auto_post
+        if channel_list and not settings.media_channel_id:
+            settings.media_channel_id = int(channel_list[0])
+            settings.media_channel_title = f"Kanal {channel_list[0]}"
 
         await session.commit()
 
         return {
             "status": "success",
             "message": f"{len(channel_list)} ta kanal saqlandi",
-            "channels": channel_list
+            "channels": channel_list,
+            "media_channel_id": str(settings.media_channel_id) if settings.media_channel_id else "",
         }
 
     except Exception as e:

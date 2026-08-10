@@ -58,7 +58,7 @@ async def lifespan(_: FastAPI):
         await bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
                 text="Saroylik bozori",
-                web_app=WebAppInfo(url=f"{WEBAPP_URL}{separator}v=8"),
+                web_app=WebAppInfo(url=f"{WEBAPP_URL}{separator}v=9"),
             )
         )
     except Exception as exc:

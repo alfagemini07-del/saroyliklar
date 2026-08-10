@@ -23,6 +23,7 @@ from handlers.place import router as place_router
 from handlers.start import router as start_router
 from middlewares.db import DbMiddleware
 from middlewares.throttling import ThrottlingMiddleware
+from services.telegram_storage_service import configure_storage
 from web.main_web import init_web
 
 
@@ -51,12 +52,13 @@ async def lifespan(_: FastAPI):
         logger.warning("Configuration: %s", error)
 
     await init_db()
+    configure_storage(bot)
     separator = "&" if "?" in WEBAPP_URL else "?"
     try:
         await bot.set_chat_menu_button(
             menu_button=MenuButtonWebApp(
                 text="Saroylik bozori",
-                web_app=WebAppInfo(url=f"{WEBAPP_URL}{separator}v=6"),
+                web_app=WebAppInfo(url=f"{WEBAPP_URL}{separator}v=8"),
             )
         )
     except Exception as exc:

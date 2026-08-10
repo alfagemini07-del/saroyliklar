@@ -3,7 +3,7 @@ E'lonlarni telegram kanalga avtomatik post qilish xizmati
 """
 import logging
 from aiogram import Bot
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, InputMediaVideo
+from aiogram.types import BufferedInputFile, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, InputMediaVideo
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from database import BotSettings, Ad, AdImage
@@ -157,6 +157,9 @@ async def post_custom_message_to_channels(
     session: AsyncSession,
     text: str,
     photo_file_id: str = None,
+    photo_bytes: bytes | None = None,
+    photo_filename: str | None = None,
+    photo_mime_type: str | None = None,
     pin_message: bool = False
 ):
     """
@@ -177,20 +180,22 @@ async def post_custom_message_to_channels(
             try:
                 channel_id_int = int(channel_id) if isinstance(channel_id, str) else channel_id
 
-                if photo_file_id and not photo_file_id.startswith('/') and not photo_file_id.startswith('http'):
-                    # Rasmli xabar
+                if photo_bytes:
+                    media = BufferedInputFile(photo_bytes, filename=photo_filename or "channel.jpg")
+                    if photo_mime_type == "image/gif":
+                        msg = await bot.send_animation(chat_id=channel_id_int, animation=media, caption=text)
+                    else:
+                        msg = await bot.send_photo(chat_id=channel_id_int, photo=media, caption=text)
+                elif photo_file_id and not photo_file_id.startswith('/') and not photo_file_id.startswith('http'):
                     msg = await bot.send_photo(
                         chat_id=channel_id_int,
                         photo=photo_file_id,
                         caption=text,
-                        parse_mode="HTML"
                     )
                 else:
-                    # Matnli xabar
                     msg = await bot.send_message(
                         chat_id=channel_id_int,
                         text=text,
-                        parse_mode="HTML"
                     )
 
                 # Pin qilish
@@ -228,7 +233,9 @@ async def unpin_message_from_channels(bot: Bot, session: AsyncSession, message_i
         settings = settings_result.scalar_one_or_none()
 
         if not settings or not settings.post_channel_ids:
-            return
+            return []
+
+        completed = []
 
         for channel_id in settings.post_channel_ids:
             try:
@@ -242,10 +249,14 @@ async def unpin_message_from_channels(bot: Bot, session: AsyncSession, message_i
                     await bot.unpin_all_chat_messages(chat_id=channel_id_int)
 
                 logger.info(f"Xabar unpin qilindi: {channel_id}")
+                completed.append(channel_id_int)
 
             except Exception as e:
                 logger.error(f"Xabarni unpin qilishda xato {channel_id}: {e}")
                 continue
 
+        return completed
+
     except Exception as e:
         logger.error(f"Unpin qilishda xato: {e}")
+        return []

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from aiogram import Bot
 
-from services.supabase_storage_service import get_storage, storage_public_url
+from services.telegram_storage_service import get_storage, storage_public_url
 
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ async def download_and_save_telegram_photo(bot: Bot, file_id: str) -> str | None
         stored = await upload_telegram_media(bot, file_id, prefix="telegram-photo")
         return stored.public_url
     except Exception as exc:
-        logger.exception("Telegram media upload to Drive failed: %s", exc)
+        logger.exception("Telegram media archive failed: %s", exc)
         return None
 
 

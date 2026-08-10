@@ -219,7 +219,7 @@ async def delete_ad(session: AsyncSession, ad_id: str, user_id: str) -> bool:
         storage_paths = [item.file_id for item in ad.images]
         await session.delete(ad)
         await session.commit()
-        from services.supabase_storage_service import get_storage
+        from services.telegram_storage_service import get_storage
         for storage_path in storage_paths:
             await get_storage().delete(storage_path)
         return True

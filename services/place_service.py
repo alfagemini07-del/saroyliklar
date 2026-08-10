@@ -136,7 +136,7 @@ async def delete_place(session: AsyncSession, place_id: str, user_id: str) -> bo
         storage_paths.extend(path for path in [place.avatar_file_id, place.cover_file_id] if path)
         await session.delete(place)
         await session.commit()
-        from services.supabase_storage_service import get_storage
+        from services.telegram_storage_service import get_storage
         for storage_path in storage_paths:
             await get_storage().delete(storage_path)
         return True
@@ -174,6 +174,7 @@ async def add_place_photo(
         mime_type=mime_type,
         media_type=media_type,
         size_bytes=size_bytes,
+        title=caption or "Mahsulot",
         caption=caption,
         price=price,
         currency=currency,
@@ -196,7 +197,7 @@ async def delete_place_photo(session: AsyncSession, photo_id: str, place_id: str
         file_id = photo.file_id
         await session.delete(photo)
         await session.commit()
-        from services.supabase_storage_service import get_storage
+        from services.telegram_storage_service import get_storage
         await get_storage().delete(file_id)
         return True
     return False

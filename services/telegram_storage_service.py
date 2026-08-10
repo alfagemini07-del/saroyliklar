@@ -76,7 +76,7 @@ def _safe_filename(filename: str, mime_type: str) -> str:
     return f"{stem}{extension.lower()}"
 
 
-def _content_matches_type(content: bytes, mime_type: str) -> bool:
+def content_matches_type(content: bytes, mime_type: str) -> bool:
     if mime_type == "image/jpeg":
         return content.startswith(b"\xff\xd8\xff")
     if mime_type == "image/png":
@@ -167,7 +167,7 @@ class TelegramChannelStorage:
             raise StorageError("Yuklangan fayl bo'sh")
         if len(content) > MAX_UPLOAD_MB * 1024 * 1024:
             raise StorageError(f"Fayl hajmi {MAX_UPLOAD_MB} MB dan oshmasligi kerak")
-        if not _content_matches_type(content, mime_type):
+        if not content_matches_type(content, mime_type):
             raise StorageError("Fayl tarkibi tanlangan media turiga mos emas")
 
         channel_id = await self.resolve_channel_id()

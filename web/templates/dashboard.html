@@ -577,8 +577,13 @@ async function saveSettings() {
       media_channel_id: document.getElementById('settings-media-channel').value.trim(),
     });
     if (result.status !== 'success') throw new Error(result.detail || 'Saqlashda xatolik');
-    document.getElementById('settings-media-channel').value = result.media_channel_id || '';
-    document.getElementById('settings-media-status').textContent = result.media_channel_title ? `Ulangan: ${result.media_channel_title}` : 'Media kanali hali belgilanmagan';
+    const requestedChannel = document.getElementById('settings-media-channel').value.trim();
+    const verified = await apiGet(ROOT + '/api/settings/');
+    if (requestedChannel && !verified.media_channel_id) throw new Error('Media kanal DBga saqlanmadi. endpoints_settings.py faylini GitHubda yangilang');
+    const mediaStatus = await apiGet(ROOT + '/api/settings/media-status');
+    if (!mediaStatus.ready) throw new Error(mediaStatus.detail || 'Media kanal ishlashga tayyor emas');
+    document.getElementById('settings-media-channel').value = verified.media_channel_id || '';
+    document.getElementById('settings-media-status').textContent = `Ulangan va tekshirildi: ${verified.media_channel_title || 'Media kanal'} (${mediaStatus.channel_id})`;
     showToast(result.message, 'ok');
   } catch (error) {
     showToast(error.message, 'err');

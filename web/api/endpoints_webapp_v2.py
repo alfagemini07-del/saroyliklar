@@ -483,10 +483,19 @@ def _market_product(product: PlacePhoto, store: Place | None = None) -> dict:
 
 def _market_bounds(conditions: list, north, south, east, west) -> None:
     values = (north, south, east, west)
+    if any(value is not None for value in values) and not all(value is not None for value in values):
+        raise HTTPException(status_code=422, detail="Xarita chegaralarini to'liq yuboring")
     if all(value is not None for value in values):
         if south > north or west > east:
             raise HTTPException(status_code=422, detail="Xarita chegaralari noto'g'ri")
-        conditions.extend([Place.lat.between(south, north), Place.lng.between(west, east)])
+        lat_padding = max((north - south) * 0.15, 0.0008)
+        lng_padding = max((east - west) * 0.15, 0.0008)
+        conditions.extend(
+            [
+                Place.lat.between(max(-90, south - lat_padding), min(90, north + lat_padding)),
+                Place.lng.between(max(-180, west - lng_padding), min(180, east + lng_padding)),
+            ]
+        )
 
 
 @market_router.get("/categories")
@@ -555,20 +564,20 @@ async def market_stores(
 @market_router.get("/map")
 async def market_map(
     category: str = Query("all"),
-    north: float | None = None,
-    south: float | None = None,
-    east: float | None = None,
-    west: float | None = None,
+    north: float | None = Query(default=None, ge=-90, le=90),
+    south: float | None = Query(default=None, ge=-90, le=90),
+    east: float | None = Query(default=None, ge=-180, le=180),
+    west: float | None = Query(default=None, ge=-180, le=180),
     session: AsyncSession = Depends(get_session),
 ):
     conditions = [Place.status == "active", Place.lat.is_not(None), Place.lng.is_not(None)]
     if category != "all":
+        if category not in CATEGORIES:
+            raise HTTPException(status_code=422, detail="Do'kon kategoriyasi noto'g'ri")
         conditions.append(Place.category == category)
-    # The marketplace currently has a small catalogue. Returning every active
-    # store keeps markers discoverable even when a saved coordinate is just
-    # outside the initial viewport; Leaflet clustering handles the display.
+    _market_bounds(conditions, north, south, east, west)
     result = await session.execute(
-        select(Place).where(and_(*conditions)).order_by(Place.is_verified.desc(), desc(Place.created_at)).limit(500)
+        select(Place).where(and_(*conditions)).order_by(Place.is_verified.desc(), desc(Place.created_at)).limit(300)
     )
     stores = [_market_store(store) for store in result.scalars()]
     return {"stores": stores, "total": len(stores)}

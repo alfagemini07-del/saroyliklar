@@ -73,7 +73,11 @@ def init_web(bot: Bot, dp: Dispatcher) -> FastAPI:
             if is_admin_api:
                 return JSONResponse({"detail": "Admin sessiyasi tugagan"}, status_code=401)
             return RedirectResponse("/admin/login", status_code=status.HTTP_303_SEE_OTHER)
-        return await call_next(request)
+        response = await call_next(request)
+        if path == "/webapp" or path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-store, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+        return response
 
     static_dir = _BASE_DIR / "web" / "static"
     templates = Jinja2Templates(directory=str(_BASE_DIR / "web" / "templates"))
@@ -82,12 +86,14 @@ def init_web(bot: Bot, dp: Dispatcher) -> FastAPI:
     from web.api import (
         endpoints_admin_full,
         endpoints_channel_management,
+        endpoints_media,
         endpoints_settings,
         endpoints_webapp_v2,
     )
 
     app.include_router(endpoints_webapp_v2.market_router)
     app.include_router(endpoints_webapp_v2.router)
+    app.include_router(endpoints_media.router)
     app.include_router(endpoints_admin_full.router)
     app.include_router(endpoints_channel_management.router)
     app.include_router(endpoints_settings.router)
@@ -108,8 +114,8 @@ def init_web(bot: Bot, dp: Dispatcher) -> FastAPI:
         return {
             "status": "ok",
             "service": "saroyliklar",
-            "version": "marketplace-v6",
-            "storage": "supabase",
+            "version": "marketplace-v8",
+            "storage": "telegram-channel",
             "database": "supabase",
         }
 

@@ -74,7 +74,7 @@ def init_web(bot: Bot, dp: Dispatcher) -> FastAPI:
                 return JSONResponse({"detail": "Admin sessiyasi tugagan"}, status_code=401)
             return RedirectResponse("/admin/login", status_code=status.HTTP_303_SEE_OTHER)
         response = await call_next(request)
-        if path == "/webapp" or path.startswith("/static/"):
+        if path == "/webapp" or path.startswith("/static/") or path.startswith("/admin"):
             response.headers["Cache-Control"] = "no-store, max-age=0"
             response.headers["Pragma"] = "no-cache"
         return response
